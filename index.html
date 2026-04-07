@@ -9,8 +9,8 @@
 <title>Filed It!</title>
 
 <!-- PWA Manifest - served as real file for Chrome install prompt -->
-<link rel="manifest" href="manifest.json"/>
-<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="manifest" href="/gshockaerial-rgb/manifest.json"/>
+<link rel="apple-touch-icon" href="/gshockaerial-rgb/icon-192.png"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Filed It!"/>
@@ -46,6 +46,15 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* ── Desktop background ── */
+  @media (min-width: 520px) {
+    body {
+      background: radial-gradient(ellipse at 20% 50%, rgba(0,229,255,0.04) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 20%, rgba(0,102,255,0.04) 0%, transparent 60%),
+                  var(--bg);
+    }
+  }
   #app {
     display: flex;
     flex-direction: column;
@@ -54,7 +63,25 @@
     margin: 0 auto;
     position: relative;
     overflow: hidden;
+    /* Desktop: show as a card with subtle border */
   }
+
+  @media (min-width: 520px) {
+    html, body { overflow: auto; }
+    #app {
+      height: 100vh;
+      min-height: 600px;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      box-shadow: 0 0 60px rgba(0,0,0,0.5);
+    }
+  }
+
+  /* Custom scrollbar for Mac/desktop */
+  #content::-webkit-scrollbar { width: 4px; }
+  #content::-webkit-scrollbar-track { background: transparent; }
+  #content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  #content::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
   /* Scrollable content area */
   #content {
@@ -105,6 +132,24 @@
     transition: all 0.15s;
   }
   .btn-secondary:active { opacity: 0.7; }
+  .btn-secondary:hover { border-color: var(--accent-soft); color: var(--text); }
+  .btn-primary-sm:hover { opacity: 0.88; }
+  .btn-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-capture:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .btn-upload:hover { border-color: var(--accent-soft); color: var(--text); }
+  .folder-card:hover { border-color: var(--accent-soft); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,229,255,0.1); }
+  .nav-btn:hover .nav-label { color: var(--accent); }
+  .nav-btn-scan:hover { opacity: 0.88; }
+  .file-item:hover { border-color: var(--accent-soft); background: var(--surface-alt); }
+  .btn-file:hover:not(.saved) { opacity: 0.88; transform: translateY(-1px); }
+  .btn-retry:hover { border-color: var(--accent-soft); color: var(--text); }
+  .viewer-back:hover { border-color: var(--accent-soft); color: var(--text); }
+  .vtoggle-btn:hover { color: var(--text); }
+  .setting-action:hover { opacity: 0.85; }
+  .back-btn:hover { border-color: var(--accent-soft); color: var(--text); }
+  .perm-allow:hover { opacity: 0.88; }
+  .im-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .im-close:hover { color: var(--text); }
   .btn-primary-sm {
     background: linear-gradient(135deg, var(--accent), #0066ff);
     border: none; border-radius: 8px; padding: 6px 14px;
@@ -121,8 +166,12 @@
     -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
     display: flex; justify-content: space-around;
-    padding: 10px 0 24px;
+    padding: 10px 0 24px; /* 24px for mobile home indicator */
     z-index: 10;
+  }
+  @media (min-width: 520px) {
+    #bottom-nav { padding: 10px 0 12px; } /* no home indicator on desktop */
+    #content { padding-bottom: 76px; }
   }
   .nav-btn {
     background: transparent; border: none;
@@ -230,22 +279,40 @@
 
   /* ── Capture View ── */
   #viewfinder-wrap {
-    background: var(--surface); border: 2px dashed var(--border);
-    border-radius: 18px; overflow: hidden;
-    aspect-ratio: 4/3; width: 100%;
-    display: flex; align-items: center; justify-content: center;
-    position: relative; margin-bottom: 16px;
+    background: #000;
+    border: 2px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    width: 100%;
+    height: 260px;
+    display: block;
+    position: relative;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  #viewfinder-wrap:hover { border-color: var(--accent-soft); }
+  @media (min-width: 520px) {
+    #viewfinder-wrap { height: 340px; }
   }
   #camera-video {
-    width: 100%; height: 100%; object-fit: cover;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
     display: none;
+    background: #000;
   }
   #camera-placeholder {
-    display: flex; flex-direction: column; align-items: center;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
     color: var(--text-dim); gap: 8px;
+    background: var(--surface);
   }
   #camera-placeholder .ph-icon { font-size: 48px; }
-  #camera-placeholder .ph-text { font-size: 14px; }
+  #camera-placeholder .ph-text { font-size: 14px; text-align: center; padding: 0 16px; }
   .vf-corners {
     position: absolute; inset: 16px;
     border: 2px solid rgba(0,229,255,0.6);
@@ -1003,11 +1070,12 @@
         </div>
       </div>
 
-      <div id="viewfinder-wrap">
+      <div id="viewfinder-wrap" onclick="viewfinderTap()">
         <video id="camera-video" autoplay playsinline muted></video>
         <div id="camera-placeholder">
           <div class="ph-icon">📷</div>
           <div class="ph-text">Initializing camera…</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Tap here if camera doesn't start</div>
         </div>
         <div class="vf-corners" id="vf-corners">
           <div class="vf-corner tl"></div>
@@ -1019,6 +1087,10 @@
       </div>
 
       <button class="btn-capture" id="btn-capture" onclick="capturePhoto()" disabled>📸 Capture &amp; Analyze</button>
+      <div id="keyboard-hint" style="text-align:center;color:var(--text-dim);font-size:12px;margin:-8px 0 12px;display:none;">
+        Press <kbd style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;">Space</kbd> to capture &nbsp;·&nbsp;
+        <kbd style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;">⌘U</kbd> to upload
+      </div>
 
       <div class="divider">
         <div class="divider-line"></div>
@@ -1257,17 +1329,23 @@
       <div class="im-step"><div class="im-step-num">4</div><div class="im-step-text">Tap <strong>Add</strong> — Filed It! appears on your home screen like a native app</div></div>
     </div>
 
+    <!-- Mac Safari note -->
+    <div id="im-mac-safari-note" style="display:none;background:rgba(255,212,71,0.08);border:1px solid rgba(255,212,71,0.25);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div style="color:var(--gold);font-weight:700;font-size:13px;margin-bottom:4px;">💡 Mac Safari Tip</div>
+      <div style="color:var(--text-mid);font-size:12px;line-height:1.5;">Safari on Mac doesn't support PWA install. Use <strong style="color:var(--text);">Chrome or Edge</strong> for the full install, or use the download button below to save the app file.</div>
+    </div>
+
     <div id="im-desktop-steps" class="im-steps">
       <div class="im-option">
         <div class="im-option-icon">💻</div>
         <div>
-          <div class="im-option-label">Desktop — Chrome / Edge</div>
-          <div class="im-option-sub">Install as a desktop app:</div>
+          <div class="im-option-label">Mac / Desktop — Chrome</div>
+          <div class="im-option-sub">Two ways to install in Chrome:</div>
         </div>
       </div>
-      <div class="im-step"><div class="im-step-num">1</div><div class="im-step-text">Look for the <strong>install icon ⊕</strong> in the browser address bar (right side)</div></div>
-      <div class="im-step"><div class="im-step-num">2</div><div class="im-step-text">Click it and select <strong>Install</strong></div></div>
-      <div class="im-step"><div class="im-step-num">3</div><div class="im-step-text">Or use the <strong>browser menu → "Install Filed It!"</strong></div></div>
+      <div class="im-step"><div class="im-step-num">A</div><div class="im-step-text">Look for the <strong>install icon ⊕</strong> at the right end of the Chrome address bar — click it then click <strong>Install</strong></div></div>
+      <div class="im-step"><div class="im-step-num">B</div><div class="im-step-text">Or click Chrome's <strong>⋮ menu</strong> (top right) → <strong>"Cast, save and share"</strong> → <strong>"Install page as app…"</strong> → <strong>Install</strong></div></div>
+      <div class="im-step"><div class="im-step-num">C</div><div class="im-step-text">Once installed, Filed It! opens as its own window from your <strong>Mac Applications folder</strong> or <strong>Dock</strong></div></div>
     </div>
 
     <!-- Divider -->
@@ -1293,7 +1371,7 @@
 // ── PWA Manifest ────────────────────────────────────────────────────────────
 // ── Service Worker (real file, not blob) ─────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
+  navigator.serviceWorker.register('/gshockaerial-rgb/sw.js', { scope: '/gshockaerial-rgb/' })
     .then(reg => console.log('SW registered:', reg.scope))
     .catch(err => console.warn('SW registration failed:', err));
 }
@@ -1418,8 +1496,8 @@ function startScan() {
 
   showView('capture');
 
-  // Small delay lets the view render before asking for camera permission
-  setTimeout(() => requestCamera(), 120);
+  // Longer delay on mobile — lets the view fully paint before requesting camera
+  setTimeout(() => requestCamera(), 300);
 }
 
 // ── Camera ───────────────────────────────────────────────────────────────────
@@ -1446,82 +1524,104 @@ function resetCameraUI() {
 }
 
 async function requestCamera() {
-  // Must be on HTTPS or localhost for camera to work
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    const ph = document.getElementById('camera-placeholder');
-    if (ph) ph.querySelector('.ph-text').textContent = 'Camera requires HTTPS. Upload an image instead.';
+  const ph     = document.getElementById('camera-placeholder');
+  const video  = document.getElementById('camera-video');
+  const banner = document.getElementById('perm-banner');
+  const capBtn = document.getElementById('btn-capture');
+  const corners = document.getElementById('vf-corners');
+  const scanLine = document.getElementById('scan-line');
+
+  // Guard: HTTPS required (already on GitHub Pages so this should always pass)
+  if (location.protocol !== 'https:' &&
+      location.hostname !== 'localhost' &&
+      location.hostname !== '127.0.0.1') {
+    ph.querySelector('.ph-text').textContent = 'Camera requires HTTPS. Use the upload button instead.';
     return;
   }
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    const ph = document.getElementById('camera-placeholder');
-    if (ph) ph.querySelector('.ph-text').textContent = 'Camera not supported in this browser.';
+    ph.querySelector('.ph-text').textContent = 'Camera API not available in this browser.';
     return;
   }
 
-  const banner = document.getElementById('perm-banner');
   banner.classList.remove('show');
+  ph.querySelector('.ph-text').textContent = 'Starting camera…';
 
-  try {
-    // Try rear camera first, fall back to any camera
-    let stream;
+  // Constraint sets to try in order — widest compatibility
+  // On desktop/Mac, skip 'environment' facingMode — MacBooks only have front camera
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const constraintSets = isMobile ? [
+    { video: { facingMode: { exact: 'environment' } } },
+    { video: { facingMode: { ideal: 'environment' } } },
+    { video: { facingMode: 'environment' } },
+    { video: true }
+  ] : [
+    { video: { width: { ideal: 1920 }, height: { ideal: 1080 } } },
+    { video: { width: { ideal: 1280 }, height: { ideal: 720 } } },
+    { video: true }
+  ];
+
+  let stream = null;
+  let lastErr = null;
+  for (const constraints of constraintSets) {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      break;
     } catch(e) {
-      // Fallback: try with minimal constraints (some Android devices need this)
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    }
-
-    mediaStream = stream;
-    const video = document.getElementById('camera-video');
-    video.srcObject = stream;
-
-    // Explicitly call play() — required on many Android browsers
-    try { await video.play(); } catch(pe) { /* autoplay policy — ignore, stream will play */ }
-
-    video.style.display = 'block';
-    document.getElementById('camera-placeholder').style.display = 'none';
-    document.getElementById('vf-corners').style.display = 'block';
-    document.getElementById('scan-line').style.display = 'block';
-    document.getElementById('btn-capture').disabled = false;
-
-  } catch(err) {
-    console.error('Camera error:', err.name, err.message);
-    const ph = document.getElementById('camera-placeholder');
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      banner.classList.add('show');
-      if (ph) ph.querySelector('.ph-text').textContent = 'Camera permission denied';
-    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-      if (ph) ph.querySelector('.ph-text').textContent = 'No camera found — upload a file instead';
-    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-      if (ph) ph.querySelector('.ph-text').textContent = 'Camera in use by another app — close it and retry';
-    } else if (err.name === 'OverconstrainedError') {
-      // Retry with no constraints at all
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        mediaStream = stream;
-        const video = document.getElementById('camera-video');
-        video.srcObject = stream;
-        try { await video.play(); } catch(pe) {}
-        video.style.display = 'block';
-        if (ph) ph.style.display = 'none';
-        document.getElementById('vf-corners').style.display = 'block';
-        document.getElementById('scan-line').style.display = 'block';
-        document.getElementById('btn-capture').disabled = false;
-        return;
-      } catch(e2) {
-        if (ph) ph.querySelector('.ph-text').textContent = 'Camera unavailable — upload a file instead';
-      }
-    } else {
-      if (ph) ph.querySelector('.ph-text').textContent = `Camera error: ${err.message || err.name} — upload a file instead`;
+      lastErr = e;
+      // Don't try more if permission was denied
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') break;
     }
   }
+
+  if (!stream) {
+    const e = lastErr;
+    if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')) {
+      banner.classList.add('show');
+      ph.querySelector('.ph-text').textContent = 'Camera permission denied';
+    } else if (e && (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError')) {
+      ph.querySelector('.ph-text').textContent = 'No camera found — use the upload button';
+    } else if (e && (e.name === 'NotReadableError' || e.name === 'TrackStartError')) {
+      ph.querySelector('.ph-text').textContent = 'Camera busy — close other apps and tap Retry';
+      banner.classList.add('show');
+    } else {
+      ph.querySelector('.ph-text').textContent = `Camera error (${e ? e.name : 'unknown'}) — use upload instead`;
+    }
+    return;
+  }
+
+  mediaStream = stream;
+
+  // Wire up the video element
+  video.srcObject = stream;
+  video.setAttribute('autoplay', '');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('muted', '');
+
+  // Wait for metadata so the video has real dimensions before showing
+  await new Promise((resolve) => {
+    if (video.readyState >= 2) { resolve(); return; }
+    video.addEventListener('loadedmetadata', resolve, { once: true });
+    setTimeout(resolve, 3000); // bail-out after 3s regardless
+  });
+
+  // Play — wrap in try/catch for autoplay policy
+  try { await video.play(); } catch(pe) {
+    console.warn('video.play() rejected:', pe.message);
+  }
+
+  // Show the video, hide placeholder
+  video.style.display = 'block';
+  ph.style.display = 'none';
+  corners.style.display = 'block';
+  scanLine.style.display = 'block';
+  capBtn.disabled = false;
+}
+
+function viewfinderTap() {
+  // If camera isn't running yet, try to start it on tap
+  // (needed for some browsers that block autostart)
+  if (!mediaStream) requestCamera();
 }
 
 function stopCamera() {
@@ -2178,19 +2278,30 @@ function openInstallModal() {
   const modal = document.getElementById('install-modal');
   modal.classList.add('open');
 
-  // Detect device/browser and show appropriate steps
-  const ua = navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-  const isAndroid = /Android/.test(ua);
-  const isDesktop = !isIOS && !isAndroid;
+  const ua          = navigator.userAgent;
+  const isIOS       = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isAndroid   = /Android/.test(ua);
+  const isDesktop   = !isIOS && !isAndroid;
+  const isMacSafari = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+  const isMacChrome = /Macintosh/.test(ua) && /Chrome/.test(ua) && !/Edge|Edg/.test(ua);
 
-  document.getElementById('im-ios-steps').style.display = isIOS ? 'block' : 'none';
+  document.getElementById('im-ios-steps').style.display     = isIOS     ? 'block' : 'none';
   document.getElementById('im-android-steps').style.display = isAndroid ? 'block' : 'none';
   document.getElementById('im-desktop-steps').style.display = isDesktop ? 'block' : 'none';
 
-  // Show native install button if prompt is available (Android Chrome)
+  // Mac Safari: show note
+  const macNote = document.getElementById('im-mac-safari-note');
+  if (macNote) macNote.style.display = isMacSafari ? 'block' : 'none';
+
+  // Install button logic
   const pwaBtn = document.getElementById('im-pwa-btn');
   if (deferredInstallPrompt) {
+    // Chrome has queued a native prompt — use it
+    pwaBtn.innerHTML = '📲 Install App Now';
+    pwaBtn.style.display = 'block';
+  } else if (isMacChrome) {
+    // Mac Chrome: prompt may not have fired yet — show manual steps button
+    pwaBtn.innerHTML = '📲 Install via Chrome Menu';
     pwaBtn.style.display = 'block';
   } else {
     pwaBtn.style.display = 'none';
@@ -2207,17 +2318,24 @@ document.getElementById('install-modal').addEventListener('click', function(e) {
 });
 
 async function triggerPWAInstall() {
-  if (!deferredInstallPrompt) return;
-  deferredInstallPrompt.prompt();
-  const { outcome } = await deferredInstallPrompt.userChoice;
-  deferredInstallPrompt = null;
-  if (outcome === 'accepted') {
-    const btn = document.getElementById('btn-install-header');
-    btn.classList.remove('visible');
-    btn.classList.add('hidden');
-    document.getElementById('im-pwa-btn').style.display = 'none';
+  if (deferredInstallPrompt) {
+    // Native Chrome prompt available — trigger it directly
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    if (outcome === 'accepted') {
+      document.getElementById('btn-install-header').classList.remove('visible');
+      document.getElementById('btn-install-header').classList.add('hidden');
+      document.getElementById('im-pwa-btn').style.display = 'none';
+      closeInstallModal();
+      showToast('✓ Filed It! installed!', 'success');
+    }
+  } else {
+    // Mac Chrome: no queued prompt — show manual instructions toast
     closeInstallModal();
-    showToast('✓ Filed It! installed!', 'success');
+    showToast('In Chrome: click the ⊕ icon in the address bar → Install', 'info');
+    // Reopen modal after toast so user can still see steps
+    setTimeout(() => openInstallModal(), 3200);
   }
 }
 
@@ -2434,11 +2552,13 @@ let toastTimer;
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.style.background = type === 'success' ? 'var(--success)' : 'var(--error)';
-  t.style.color = type === 'success' ? '#000' : '#fff';
+  t.style.background = type === 'success' ? 'var(--success)'
+                     : type === 'info'    ? 'var(--accent)'
+                     :                      'var(--error)';
+  t.style.color = (type === 'success' || type === 'info') ? '#000' : '#fff';
   t.style.display = 'block';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3000);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, 4000);
 }
 
 // ── API Key Management ────────────────────────────────────────────────────────
@@ -2471,6 +2591,42 @@ document.getElementById('ak-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') saveApiKey();
 });
 
+// ── Desktop / Mac Detection & Keyboard Shortcuts ─────────────────────────────
+const isDesktopDevice = !(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+
+if (isDesktopDevice) {
+  // Show keyboard hint on capture view
+  const hint = document.getElementById('keyboard-hint');
+  if (hint) hint.style.display = 'block';
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    // Space or Enter = capture photo (when on capture view and camera ready)
+    if ((e.code === 'Space' || e.code === 'Enter') && currentView === 'capture') {
+      e.preventDefault();
+      const btn = document.getElementById('btn-capture');
+      if (btn && !btn.disabled) capturePhoto();
+    }
+    // Cmd+U = upload file
+    if (e.metaKey && e.key === 'u') {
+      e.preventDefault();
+      document.getElementById('file-input')?.click();
+    }
+    // Escape = close any modal / go back
+    if (e.code === 'Escape') {
+      const viewer = document.getElementById('file-viewer');
+      const modal  = document.getElementById('install-modal');
+      if (viewer?.classList.contains('open')) { closeViewer(); return; }
+      if (modal?.classList.contains('open'))  { closeInstallModal(); return; }
+    }
+    // Cmd+, = settings
+    if (e.metaKey && e.key === ',') {
+      e.preventDefault();
+      showView('settings');
+    }
+  });
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 if (localStorage.getItem('filedIt_apiKey')) {
   document.getElementById('apikey-screen').classList.add('hidden');
@@ -2483,19 +2639,23 @@ if (savedDevicePath) {
 }
 
 // Show install button on iOS (beforeinstallprompt never fires there)
-// Hide it if already running as installed PWA (standalone mode)
+// Also show on desktop Chrome where user may need to manually trigger
+// Hide if already running as installed PWA (standalone mode)
 const isRunningInstalled = window.matchMedia('(display-mode: standalone)').matches
   || window.navigator.standalone === true;
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isIOS        = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isChrome     = /Chrome/.test(navigator.userAgent) && !/Edge|Edg/.test(navigator.userAgent);
+const isMacChrome  = /Macintosh/.test(navigator.userAgent) && isChrome;
 
 if (isRunningInstalled) {
-  // Already installed — keep button hidden
+  // Already installed as PWA — hide install button entirely
   document.getElementById('btn-install-header').classList.add('hidden');
-} else if (isIOS) {
-  // iOS: show install button since beforeinstallprompt never fires
+} else if (isIOS || isMacChrome) {
+  // iOS and Mac Chrome: always show install button
+  // (iOS: beforeinstallprompt never fires; Mac Chrome: may have fired already or will fire)
   document.getElementById('btn-install-header').classList.add('visible');
 }
-// Android/desktop: button stays hidden until beforeinstallprompt fires
+// Android Chrome: button appears when beforeinstallprompt fires
 
 renderHome();
 </script>
