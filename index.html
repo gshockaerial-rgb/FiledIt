@@ -1,0 +1,2503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="theme-color" content="#0a0a0f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="description" content="AI-powered document scanning and smart filing app"/>
+<title>Filed It!</title>
+
+<!-- PWA Manifest - served as real file for Chrome install prompt -->
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Filed It!"/>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface-alt: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #00e5ff;
+    --accent-dim: rgba(0,229,255,0.1);
+    --accent-soft: rgba(0,229,255,0.5);
+    --gold: #ffd447;
+    --gold-dim: rgba(255,212,71,0.12);
+    --success: #00e676;
+    --error: #ff4569;
+    --text: #f0f0ff;
+    --text-mid: #9090b0;
+    --text-dim: #4a4a6a;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    height: 100%;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Scrollable content area */
+  #content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 90px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Header ── */
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+  }
+  .logo-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 4px 16px rgba(0,229,255,0.3);
+  }
+  .logo-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px; letter-spacing: 2px;
+    background: linear-gradient(90deg, var(--text), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-actions { display: flex; gap: 8px; }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 14px;
+    color: var(--text-mid); font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-secondary:active { opacity: 0.7; }
+  .btn-primary-sm {
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none; border-radius: 8px; padding: 6px 14px;
+    color: #000; font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 800; cursor: pointer;
+  }
+
+  /* ── Bottom Nav ── */
+  #bottom-nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(19,19,26,0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-around;
+    padding: 10px 0 24px;
+    z-index: 10;
+  }
+  .nav-btn {
+    background: transparent; border: none;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 4px 20px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .nav-btn .nav-icon { font-size: 22px; }
+  .nav-btn .nav-label {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    transition: color 0.15s;
+  }
+  .nav-btn.active .nav-label { color: var(--accent); }
+  .nav-btn-scan {
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none; border-radius: 14px; padding: 8px 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    box-shadow: 0 4px 16px rgba(0,229,255,0.35);
+  }
+  .nav-btn-scan .nav-icon { font-size: 20px; }
+  .nav-btn-scan .nav-label { font-size: 11px; font-weight: 700; color: #000; }
+
+  /* ── Views ── */
+  .view { display: none; padding: 24px 20px; animation: fadeUp 0.25s ease; }
+  .view.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Cards / Surfaces ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+  }
+  .card + .card { margin-top: 14px; }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, var(--surface-alt), var(--surface));
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 26px;
+    margin-bottom: 20px; position: relative; overflow: hidden;
+  }
+  .hero::after {
+    content: '';
+    position: absolute; top: -40px; right: -40px;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,229,255,0.15), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-label { color: var(--text-mid); font-size: 11px; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 34px; letter-spacing: 2px; line-height: 1;
+    color: var(--text); margin-bottom: 12px;
+  }
+  .hero-title span { color: var(--accent); }
+  .hero-desc { color: var(--text-mid); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+  .btn-cta {
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none; border-radius: 12px; padding: 14px 26px;
+    color: #000; font-weight: 800; font-size: 15px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0,229,255,0.35);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+
+  /* ── Stats ── */
+  .stats-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px; margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 10px; text-align: center;
+  }
+  .stat-icon { font-size: 20px; margin-bottom: 4px; }
+  .stat-value { color: var(--accent); font-weight: 800; font-size: 22px; }
+  .stat-label { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+
+  /* ── Folder Grid ── */
+  .folder-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-bottom: 20px;
+  }
+  .folder-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px;
+    cursor: pointer; transition: all 0.18s;
+    position: relative; overflow: hidden;
+  }
+  .folder-card:active { transform: scale(0.97); opacity: 0.85; }
+  .folder-card .new-badge {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--gold); color: #000;
+    font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    border-radius: 4px; padding: 2px 5px;
+  }
+  .folder-icon { font-size: 26px; margin-bottom: 8px; }
+  .folder-name { color: var(--text); font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+  .folder-count { color: var(--text-dim); font-size: 12px; }
+
+  /* ── Capture View ── */
+  #viewfinder-wrap {
+    background: var(--surface); border: 2px dashed var(--border);
+    border-radius: 18px; overflow: hidden;
+    aspect-ratio: 4/3; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; margin-bottom: 16px;
+  }
+  #camera-video {
+    width: 100%; height: 100%; object-fit: cover;
+    display: none;
+  }
+  #camera-placeholder {
+    display: flex; flex-direction: column; align-items: center;
+    color: var(--text-dim); gap: 8px;
+  }
+  #camera-placeholder .ph-icon { font-size: 48px; }
+  #camera-placeholder .ph-text { font-size: 14px; }
+  .vf-corners {
+    position: absolute; inset: 16px;
+    border: 2px solid rgba(0,229,255,0.6);
+    border-radius: 10px; pointer-events: none;
+    box-shadow: inset 0 0 30px rgba(0,229,255,0.06);
+    display: none;
+  }
+  .vf-corner {
+    position: absolute; width: 20px; height: 20px;
+    border-color: var(--accent); border-style: solid; border-width: 0;
+  }
+  .vf-corner.tl { top: -2px; left: -2px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 4px; }
+  .vf-corner.tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 4px; }
+  .vf-corner.bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 4px; }
+  .vf-corner.br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 4px; }
+  #scan-line {
+    position: absolute; left: 20px; right: 20px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: scanMove 2s ease-in-out infinite;
+    display: none; border-radius: 2px;
+  }
+  @keyframes scanMove {
+    0% { top: 20px; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: calc(100% - 24px); opacity: 0; }
+  }
+  .btn-capture {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none; border-radius: 14px;
+    color: #000; font-weight: 800; font-size: 16px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0,229,255,0.35);
+    margin-bottom: 14px; transition: opacity 0.2s;
+  }
+  .btn-capture:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  .divider {
+    display: flex; align-items: center; gap: 12px; margin: 4px 0 14px;
+  }
+  .divider-line { flex: 1; height: 1px; background: var(--border); }
+  .divider-text { color: var(--text-dim); font-size: 13px; }
+  .btn-upload {
+    width: 100%; padding: 14px;
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 14px; color: var(--text-mid); font-weight: 600;
+    font-size: 15px; font-family: 'DM Sans', sans-serif; cursor: pointer;
+    margin-bottom: 16px;
+  }
+  .tips-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .tips-title { color: var(--text-mid); font-size: 11px; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .tip { color: var(--text-dim); font-size: 13px; margin-bottom: 5px; }
+  .tip span { color: var(--accent); }
+
+  /* ── Processing View ── */
+  #view-processing {
+    display: none; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 70dvh;
+    padding: 40px 20px; gap: 28px;
+    animation: fadeUp 0.3s ease;
+  }
+  #view-processing.active { display: flex; }
+  #preview-thumb {
+    width: 160px; height: 120px; border-radius: 14px;
+    object-fit: cover; border: 2px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,229,255,0.15);
+    display: none;
+  }
+  .spinner {
+    width: 54px; height: 54px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .processing-title { color: var(--text); font-weight: 700; font-size: 20px; text-align: center; }
+  .processing-sub { color: var(--text-mid); font-size: 14px; text-align: center; line-height: 1.6; }
+  .processing-steps { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 280px; }
+  .proc-step {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text-mid); font-size: 13px;
+    animation: fadeLeft 0.4s ease both;
+  }
+  @keyframes fadeLeft {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .step-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── Result View ── */
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+  }
+  .result-cat-icon { font-size: 32px; }
+  .result-cat-name { color: var(--text); font-weight: 700; font-size: 18px; }
+  .result-cat-sub { color: var(--text-mid); font-size: 13px; }
+  .confidence-badge {
+    background: var(--accent-dim); border: 1px solid var(--accent-soft);
+    border-radius: 10px; padding: 6px 14px;
+    color: var(--accent); font-weight: 700; font-size: 14px;
+  }
+  .conf-bar-label { color: var(--text-mid); font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; }
+  .conf-bar-track {
+    background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 20px;
+  }
+  .conf-bar-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), rgba(0,229,255,0.5));
+    transition: width 1s ease;
+  }
+  .section-label { color: var(--text-mid); font-size: 11px; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .data-rows { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+  .data-row {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--surface-alt); border-radius: 8px; padding: 10px 14px;
+  }
+  .data-key { color: var(--text-mid); font-size: 13px; text-transform: capitalize; }
+  .data-val { color: var(--text); font-size: 13px; font-weight: 500; max-width: 60%; text-align: right; word-break: break-word; }
+  .tags-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tag {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    color: var(--accent); background: var(--accent-dim);
+    border: 1px solid rgba(0,229,255,0.25);
+    border-radius: 4px; padding: 3px 8px; text-transform: uppercase;
+  }
+  .destination-box {
+    background: var(--gold-dim); border: 1px solid rgba(255,212,71,0.3);
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+  }
+  .dest-icon { font-size: 22px; }
+  .dest-label { color: var(--text-mid); font-size: 11px; letter-spacing: 1px; }
+  .dest-path { color: var(--gold); font-weight: 700; font-size: 14px; word-break: break-all; }
+  .result-actions { display: flex; gap: 10px; }
+  .btn-file {
+    flex: 1; padding: 15px;
+    background: linear-gradient(135deg, rgba(0,229,255,0.85), rgba(0,229,255,0.5));
+    border: 1px solid var(--accent);
+    border-radius: 12px; color: #000; font-weight: 800; font-size: 15px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-file.saved {
+    background: rgba(0,230,118,0.15); border-color: var(--success);
+    color: var(--success);
+  }
+  .btn-retry {
+    padding: 15px 20px; background: transparent;
+    border: 1px solid var(--border); border-radius: 12px;
+    color: var(--text-mid); font-weight: 600; font-size: 14px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+  }
+  .result-thumb {
+    width: 60px; height: 44px; border-radius: 8px;
+    object-fit: cover; border: 1px solid var(--border);
+    margin-right: 4px; display: none;
+  }
+
+  /* ── Folder Detail ── */
+  .back-btn {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; color: var(--text-mid);
+    font-size: 14px; font-family: 'DM Sans', sans-serif; cursor: pointer;
+    margin-bottom: 16px;
+  }
+  .file-list { display: flex; flex-direction: column; gap: 10px; }
+  .file-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 13px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .file-thumb {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: var(--surface-alt); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .file-name { color: var(--text); font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-meta { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+  .file-more { color: var(--text-dim); font-size: 20px; margin-left: auto; flex-shrink: 0; }
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text-dim); }
+  .empty-icon { font-size: 44px; margin-bottom: 12px; }
+
+  /* ── File Viewer Modal ── */
+  #file-viewer {
+    position: fixed; inset: 0; z-index: 500;
+    background: var(--bg);
+    display: none; flex-direction: column;
+    animation: fadeUp 0.22s ease;
+  }
+  #file-viewer.open { display: flex; }
+  #viewer-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0;
+  }
+  .viewer-back {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; color: var(--text-mid);
+    font-size: 14px; font-family: 'DM Sans', sans-serif; cursor: pointer;
+  }
+  .viewer-title { color: var(--text); font-weight: 600; font-size: 15px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #viewer-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  #viewer-img-wrap {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    display: flex; align-items: flex-start; justify-content: center;
+    min-height: 220px;
+  }
+  #viewer-img { width: 100%; height: auto; display: block; object-fit: contain; max-height: 70vh; }
+  #viewer-html-doc {
+    width: 100%; padding: 16px; background: #fff;
+    font-family: Arial, sans-serif; font-size: 13px;
+    overflow-x: auto;
+  }
+  #viewer-no-img { padding: 40px; text-align: center; color: var(--text-dim); display: none; }
+  #viewer-no-img .no-img-icon { font-size: 48px; margin-bottom: 10px; }
+  .viewer-toggle {
+    display: flex; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 3px; gap: 3px; margin-bottom: 2px;
+  }
+  .vtoggle-btn {
+    flex: 1; padding: 8px; border: none; border-radius: 7px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; color: var(--text-dim); background: transparent;
+  }
+  .vtoggle-btn.active { background: var(--surface-alt); color: var(--text); }
+  .viewer-meta-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .viewer-section-label { color: var(--text-mid); font-size: 11px; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .viewer-data-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .viewer-data-row:last-child { border-bottom: none; }
+  .viewer-data-key { color: var(--text-mid); font-size: 13px; text-transform: capitalize; flex-shrink: 0; margin-right: 12px; }
+  .viewer-data-val { color: var(--text); font-size: 13px; font-weight: 500; text-align: right; word-break: break-word; }
+  .viewer-tags { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 4px; }
+  .viewer-conf { display: flex; align-items: center; justify-content: space-between; background: var(--accent-dim); border: 1px solid rgba(0,229,255,0.2); border-radius: 10px; padding: 10px 14px; margin-top: 4px; }
+  .viewer-conf-label { color: var(--text-mid); font-size: 13px; }
+  .viewer-conf-val { color: var(--accent); font-weight: 700; font-size: 14px; }
+  .file-img-thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
+  .file-thumb-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--surface-alt); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+
+  /* ── Handwriting Notes ── */
+  .hw-card {
+    background: linear-gradient(135deg, rgba(255,212,71,0.08), rgba(255,212,71,0.03));
+    border: 1px solid rgba(255,212,71,0.3);
+    border-radius: 14px; padding: 18px; margin-bottom: 14px;
+  }
+  .hw-label {
+    color: var(--gold); font-size: 11px; letter-spacing: 1.5px;
+    font-weight: 700; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .hw-badge {
+    background: var(--gold); color: #000;
+    font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    border-radius: 4px; padding: 2px 6px;
+  }
+  .hw-block {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,212,71,0.15);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+  }
+  .hw-block:last-child { margin-bottom: 0; }
+  .hw-location {
+    color: var(--gold); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.5px; margin-bottom: 6px; opacity: 0.8;
+  }
+  .hw-text {
+    color: var(--text); font-size: 14px; line-height: 1.65;
+    font-family: 'Georgia', serif; /* gives handwritten feel */
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .hw-confidence {
+    color: var(--text-dim); font-size: 11px; margin-top: 6px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .hw-conf-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .hw-note-edit {
+    width: 100%; margin-top: 10px; padding: 10px 12px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,212,71,0.25);
+    border-radius: 9px; color: var(--text); font-size: 14px;
+    font-family: 'DM Sans', sans-serif; resize: vertical; min-height: 70px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .hw-note-edit:focus { border-color: rgba(255,212,71,0.6); }
+  .hw-note-edit::placeholder { color: var(--text-dim); }
+  .hw-save-note {
+    margin-top: 8px; padding: 9px 18px;
+    background: var(--gold-dim); border: 1px solid rgba(255,212,71,0.4);
+    border-radius: 8px; color: var(--gold); font-weight: 700;
+    font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer;
+  }
+  .hw-none {
+    color: var(--text-dim); font-size: 13px; font-style: italic; padding: 4px 0;
+  }
+  /* Handwriting indicator in folder file list */
+  .hw-indicator {
+    display: inline-block; background: rgba(255,212,71,0.15);
+    border: 1px solid rgba(255,212,71,0.3); border-radius: 4px;
+    color: var(--gold); font-size: 10px; font-weight: 700;
+    padding: 1px 6px; margin-top: 3px; letter-spacing: 0.5px;
+  }
+  /* Result view handwriting preview */
+  .hw-result-preview {
+    background: linear-gradient(135deg, rgba(255,212,71,0.08), rgba(255,212,71,0.03));
+    border: 1px solid rgba(255,212,71,0.3);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  #device-folder-banner {
+    background: linear-gradient(135deg, rgba(0,230,118,0.1), rgba(0,229,255,0.06));
+    border: 1px solid rgba(0,230,118,0.3);
+    border-radius: 12px; padding: 14px 16px;
+    margin: 12px 20px 0;
+    display: none; align-items: center; gap: 12px;
+  }
+  #device-folder-banner.show { display: flex; }
+  .dfb-text { flex: 1; }
+  .dfb-title { color: var(--success); font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+  .dfb-sub { color: var(--text-mid); font-size: 12px; line-height: 1.5; }
+  .dfb-btn {
+    padding: 8px 14px; background: rgba(0,230,118,0.15);
+    border: 1px solid rgba(0,230,118,0.4); border-radius: 8px;
+    color: var(--success); font-weight: 700; font-size: 12px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
+  }
+  /* ── Settings View ── */
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 0; border-bottom: 1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { color: var(--text); font-weight: 600; font-size: 15px; }
+  .setting-sub { color: var(--text-mid); font-size: 12px; margin-top: 2px; }
+  .setting-action {
+    padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 700;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .sa-primary { background: linear-gradient(135deg, var(--accent), #0066ff); border: none; color: #000; }
+  .sa-danger { background: rgba(255,69,105,0.12); border: 1px solid rgba(255,69,105,0.3); color: var(--error); }
+  .sa-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-mid); }
+  .folder-path-box {
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-top: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .folder-path-text { color: var(--success); font-size: 13px; font-weight: 500; word-break: break-all; flex: 1; }
+  /* Save-to-device indicator on file items */
+  .saved-to-device { color: var(--success); font-size: 11px; margin-top: 2px; }
+
+  #perm-banner {
+    background: linear-gradient(135deg, rgba(255,212,71,0.15), rgba(255,212,71,0.05));
+    border: 1px solid rgba(255,212,71,0.35);
+    border-radius: 12px; padding: 14px 16px;
+    margin-bottom: 16px; display: none;
+    align-items: flex-start; gap: 12px;
+  }
+  #perm-banner.show { display: flex; }
+  .perm-text { flex: 1; }
+  .perm-title { color: var(--gold); font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .perm-sub { color: var(--text-mid); font-size: 13px; line-height: 1.5; }
+  .perm-allow {
+    margin-top: 10px; padding: 8px 16px;
+    background: var(--gold); border: none; border-radius: 8px;
+    color: #000; font-weight: 700; font-size: 13px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+  }
+
+  /* ── API Key Screen ── */
+  #apikey-screen {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 24px; gap: 24px;
+  }
+  #apikey-screen.hidden { display: none; }
+  .ak-logo { font-size: 56px; margin-bottom: 4px; }
+  .ak-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px; letter-spacing: 3px;
+    background: linear-gradient(90deg, var(--text), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .ak-sub { color: var(--text-mid); font-size: 14px; text-align: center; line-height: 1.6; max-width: 320px; }
+  .ak-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 24px; width: 100%; max-width: 400px;
+  }
+  .ak-label { color: var(--text-mid); font-size: 11px; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .ak-input {
+    width: 100%; padding: 14px 16px;
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text); font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none; margin-bottom: 14px;
+    transition: border-color 0.2s;
+  }
+  .ak-input:focus { border-color: var(--accent-soft); }
+  .ak-input::placeholder { color: var(--text-dim); }
+  .ak-save {
+    width: 100%; padding: 15px;
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none; border-radius: 12px;
+    color: #000; font-weight: 800; font-size: 16px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0,229,255,0.3);
+  }
+  .ak-hint {
+    color: var(--text-dim); font-size: 12px; text-align: center;
+    line-height: 1.6; max-width: 340px;
+  }
+  .ak-hint a { color: var(--accent); text-decoration: none; }
+  .ak-error {
+    color: var(--error); font-size: 13px; margin-bottom: 10px; display: none;
+  }
+
+  /* ── Install Modal ── */
+  #install-modal {
+    position: fixed; inset: 0; z-index: 800;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+    display: none; align-items: flex-end; justify-content: center;
+    padding: 20px;
+  }
+  #install-modal.open { display: flex; }
+  #install-modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 22px; padding: 28px 24px; width: 100%; max-width: 480px;
+    animation: slideUpModal 0.3s ease;
+  }
+  @keyframes slideUpModal {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .im-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px;
+    background: linear-gradient(90deg, var(--text), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+  .im-sub { color: var(--text-mid); font-size: 14px; margin-bottom: 22px; line-height: 1.5; }
+  .im-option {
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .im-option-icon { font-size: 28px; flex-shrink: 0; }
+  .im-option-label { color: var(--text); font-weight: 700; font-size: 15px; margin-bottom: 3px; }
+  .im-option-sub { color: var(--text-mid); font-size: 12px; line-height: 1.5; }
+  .im-btn {
+    width: 100%; padding: 14px; border-radius: 12px;
+    font-family: 'DM Sans', sans-serif; font-weight: 800; font-size: 15px;
+    cursor: pointer; border: none; margin-bottom: 10px;
+  }
+  .im-btn-primary {
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    color: #000; box-shadow: 0 4px 20px rgba(0,229,255,0.3);
+  }
+  .im-btn-secondary {
+    background: transparent; border: 1px solid var(--border) !important;
+    color: var(--text-mid);
+  }
+  .im-btn-download {
+    background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35) !important;
+    color: var(--success);
+  }
+  .im-steps { margin: 10px 0 14px; display: none; }
+  .im-step {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .im-step:last-child { border-bottom: none; }
+  .im-step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: #000;
+    font-size: 12px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .im-step-text { color: var(--text-mid); font-size: 13px; line-height: 1.5; }
+  .im-step-text strong { color: var(--text); }
+  .im-close {
+    position: absolute; top: 16px; right: 18px;
+    background: transparent; border: none; color: var(--text-dim);
+    font-size: 22px; cursor: pointer; line-height: 1;
+  }
+  /* Pulsing install button in header - hidden until installable */
+  #btn-install-header {
+    background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none; border-radius: 8px; padding: 6px 12px;
+    color: #000; font-size: 12px; font-weight: 800;
+    font-family: 'DM Sans', sans-serif; cursor: pointer;
+    animation: installPulse 2.5s ease-in-out infinite;
+    white-space: nowrap;
+    display: none; /* hidden until PWA prompt fires or iOS detected */
+  }
+  @keyframes installPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,255,0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(0,229,255,0); }
+  }
+  #btn-install-header.visible { display: block; }
+  #btn-install-header.hidden { display: none !important; }
+    background: linear-gradient(135deg, rgba(0,229,255,0.12), rgba(0,102,255,0.08));
+    border: 1px solid rgba(0,229,255,0.3);
+    border-radius: 12px; padding: 14px 16px;
+    margin-bottom: 16px; display: none;
+    align-items: center; gap: 12px;
+  }
+  #install-banner.show { display: flex; }
+  .install-text { flex: 1; }
+  .install-title { color: var(--accent); font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+  .install-sub { color: var(--text-mid); font-size: 12px; }
+  .install-btn {
+    padding: 8px 16px; background: linear-gradient(135deg, var(--accent), #0066ff);
+    border: none; border-radius: 8px; color: #000;
+    font-weight: 700; font-size: 13px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
+  }
+  .close-btn {
+    background: transparent; border: none; color: var(--text-dim);
+    font-size: 18px; cursor: pointer; padding: 0 4px;
+  }
+
+  /* ── Error toast ── */
+  #toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+    background: var(--error); color: #fff;
+    border-radius: 10px; padding: 12px 20px;
+    font-size: 14px; font-weight: 600;
+    z-index: 999; display: none;
+    max-width: calc(100% - 40px);
+    text-align: center;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { opacity:0; transform: translate(-50%, 10px); } to { opacity:1; transform: translate(-50%, 0); } }
+
+  /* ── Feature list ── */
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .feature-item { display: flex; align-items: center; gap: 8px; }
+  .feature-icon { font-size: 16px; }
+  .feature-name { color: var(--text-mid); font-size: 13px; }
+
+  .view-title { color: var(--text); font-weight: 700; font-size: 22px; margin-bottom: 4px; }
+  .view-sub { color: var(--text-mid); font-size: 14px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<!-- API Key Screen -->
+<div id="apikey-screen">
+  <div class="ak-logo">🗂️</div>
+  <div class="ak-title">FILED IT!</div>
+  <div class="ak-sub">Enter your Anthropic API key to enable AI-powered document scanning and classification.</div>
+  <div class="ak-card">
+    <div class="ak-label">ANTHROPIC API KEY</div>
+    <div class="ak-error" id="ak-error">Invalid API key. Please check and try again.</div>
+    <input class="ak-input" id="ak-input" type="password" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false"/>
+    <button class="ak-save" onclick="saveApiKey()">Get Started →</button>
+  </div>
+  <div class="ak-hint">
+    Get a free API key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>
+    Your key is stored only on your device and never shared.
+  </div>
+</div>
+
+<div id="app">
+  <!-- Header -->
+  <div id="header">
+    <div class="logo" onclick="showView('home')">
+      <div class="logo-icon">🗂️</div>
+      <div class="logo-text">FILED IT!</div>
+    </div>
+    <div class="header-actions">
+      <button id="btn-install-header" onclick="openInstallModal()" title="Install App">📲 Install</button>
+      <button class="btn-secondary" onclick="showView('settings')" title="Settings">⚙️</button>
+      <button class="btn-primary-sm" onclick="startScan()">+ Scan</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- Device Folder Banner -->
+    <div id="device-folder-banner">
+      <div>💾</div>
+      <div class="dfb-text">
+        <div class="dfb-title">Saving to Device</div>
+        <div class="dfb-sub" id="dfb-path-text">Filed It! folder connected</div>
+      </div>
+      <button class="dfb-btn" onclick="showView('settings')">Manage</button>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="view-settings" class="view">
+      <div class="view-title">Settings</div>
+      <div class="view-sub" style="margin-bottom:20px;">Manage your Filed It! preferences</div>
+
+      <!-- Install App Card -->
+      <div class="card" style="margin-bottom:14px;">
+        <div style="color:var(--text-mid);font-size:11px;letter-spacing:1.5px;margin-bottom:14px;">📲 INSTALL APP</div>
+        <div class="setting-row" style="padding-top:0;border:none;">
+          <div>
+            <div class="setting-label">Install Filed It! on Device</div>
+            <div class="setting-sub">Add to home screen for native app experience.<br/>Works on Android, iPhone, and desktop.</div>
+          </div>
+        </div>
+        <button class="setting-action sa-primary" style="width:100%;padding:14px;font-size:14px;border-radius:12px;" onclick="openInstallModal()">
+          📲 Install / Download App
+        </button>
+      </div>
+
+      <!-- Device Folder Card -->
+      <div class="card" style="margin-bottom:14px;">
+        <div style="color:var(--text-mid);font-size:11px;letter-spacing:1.5px;margin-bottom:14px;">📂 DEVICE FOLDER</div>
+
+        <div id="settings-no-folder">
+          <div class="setting-row" style="border:none;padding-top:0;">
+            <div>
+              <div class="setting-label">Connect Device Folder</div>
+              <div class="setting-sub">Create a "Filed It!" folder on your device.<br/>All scans save automatically as real files.</div>
+            </div>
+          </div>
+          <button class="setting-action sa-primary" style="width:100%;padding:14px;font-size:14px;" onclick="connectDeviceFolder()">
+            📁 Choose / Create Folder
+          </button>
+          <div style="color:var(--text-dim);font-size:12px;margin-top:10px;line-height:1.6;">
+            ⚠️ Requires Chrome 86+ on Android or desktop. Safari and Firefox do not support this feature.
+          </div>
+        </div>
+
+        <div id="settings-has-folder" style="display:none;">
+          <div class="folder-path-box">
+            <span style="font-size:20px;">📂</span>
+            <div class="folder-path-text" id="settings-folder-path">—</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button class="setting-action sa-secondary" style="flex:1;" onclick="connectDeviceFolder()">Change Folder</button>
+            <button class="setting-action sa-danger" style="flex:1;" onclick="disconnectFolder()">Disconnect</button>
+          </div>
+          <div style="margin-top:14px;">
+            <div class="setting-row" style="border:none;padding:0;">
+              <div>
+                <div class="setting-label" style="font-size:14px;">Save scanned image</div>
+                <div class="setting-sub">Save .jpg of cropped document</div>
+              </div>
+              <input type="checkbox" id="pref-save-image" checked style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;"/>
+            </div>
+            <div class="setting-row" style="border:none;padding:8px 0 0;">
+              <div>
+                <div class="setting-label" style="font-size:14px;">Save document reconstruction</div>
+                <div class="setting-sub">Save .html faithful copy of document</div>
+              </div>
+              <input type="checkbox" id="pref-save-html" checked style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;"/>
+            </div>
+            <div class="setting-row" style="border:none;padding:8px 0 0;">
+              <div>
+                <div class="setting-label" style="font-size:14px;">Save metadata</div>
+                <div class="setting-sub">Save .json with extracted data & tags</div>
+              </div>
+              <input type="checkbox" id="pref-save-json" checked style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Key Card -->
+      <div class="card" style="margin-bottom:14px;">
+        <div style="color:var(--text-mid);font-size:11px;letter-spacing:1.5px;margin-bottom:14px;">🔑 API KEY</div>
+        <div class="setting-row" style="padding-top:0;">
+          <div>
+            <div class="setting-label">Anthropic API Key</div>
+            <div class="setting-sub" id="settings-key-status">Not set</div>
+          </div>
+          <button class="setting-action sa-secondary" onclick="showApiKeyScreen()">Change</button>
+        </div>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="card">
+        <div style="color:var(--text-mid);font-size:11px;letter-spacing:1.5px;margin-bottom:14px;">⚠️ DATA</div>
+        <div class="setting-row" style="padding-top:0;border:none;">
+          <div>
+            <div class="setting-label">Clear All App Data</div>
+            <div class="setting-sub">Removes all folders and files from app.<br/>Device folder files are NOT deleted.</div>
+          </div>
+          <button class="setting-action sa-danger" onclick="clearAppData()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+      <div class="install-text">
+        <div class="install-title">📲 Install Filed It!</div>
+        <div class="install-sub">Add to home screen for the full app experience</div>
+      </div>
+      <button class="install-btn" onclick="installPWA()">Install</button>
+      <button class="close-btn" onclick="document.getElementById('install-banner').classList.remove('show')">✕</button>
+    </div>
+
+    <!-- Install Banner -->
+    <div id="install-banner" style="margin: 12px 20px 0;">
+      <div class="hero">
+        <div class="hero-label">AI-POWERED DOCUMENT FILING</div>
+        <div class="hero-title">CAPTURE.<br/>CLASSIFY.<br/><span>FILED.</span></div>
+        <div class="hero-desc">Point your camera at any document. AI extracts all data, identifies the type, and files it automatically.</div>
+        <button class="btn-cta" onclick="startScan()">📸 Scan a Document</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📑</div>
+          <div class="stat-value" id="stat-files">0</div>
+          <div class="stat-label">Total Files</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🗂️</div>
+          <div class="stat-value" id="stat-folders">0</div>
+          <div class="stat-label">Folders</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📅</div>
+          <div class="stat-value" id="stat-month">0</div>
+          <div class="stat-label">This Month</div>
+        </div>
+      </div>
+
+      <div style="color:var(--text-mid);font-size:11px;letter-spacing:1.5px;margin-bottom:12px;">RECENT FOLDERS</div>
+      <div class="folder-grid" id="home-folder-grid"></div>
+
+      <div class="card" style="margin-top:4px;">
+        <div style="color:var(--text-mid);font-size:11px;letter-spacing:1.5px;margin-bottom:12px;">WHAT FILED IT! RECOGNIZES</div>
+        <div class="feature-grid" id="feature-list"></div>
+      </div>
+    </div>
+
+    <!-- CAPTURE VIEW -->
+    <div id="view-capture" class="view">
+      <div class="view-title">Scan Document</div>
+      <div class="view-sub">Position the document in frame or upload an image</div>
+
+      <div id="perm-banner">
+        <div>📷</div>
+        <div class="perm-text">
+          <div class="perm-title">Camera Permission Required</div>
+          <div class="perm-sub">Filed It! needs camera access to scan documents. Tap Allow in your browser's permission prompt.</div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button class="perm-allow" onclick="requestCamera()">🔄 Try Again</button>
+            <button class="perm-allow" style="background:var(--surface-alt);color:var(--text-mid);border:1px solid var(--border);" onclick="document.getElementById('file-input').click()">📂 Upload Instead</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="viewfinder-wrap">
+        <video id="camera-video" autoplay playsinline muted></video>
+        <div id="camera-placeholder">
+          <div class="ph-icon">📷</div>
+          <div class="ph-text">Initializing camera…</div>
+        </div>
+        <div class="vf-corners" id="vf-corners">
+          <div class="vf-corner tl"></div>
+          <div class="vf-corner tr"></div>
+          <div class="vf-corner bl"></div>
+          <div class="vf-corner br"></div>
+        </div>
+        <div id="scan-line"></div>
+      </div>
+
+      <button class="btn-capture" id="btn-capture" onclick="capturePhoto()" disabled>📸 Capture &amp; Analyze</button>
+
+      <div class="divider">
+        <div class="divider-line"></div>
+        <div class="divider-text">or</div>
+        <div class="divider-line"></div>
+      </div>
+
+      <button class="btn-upload" onclick="document.getElementById('file-input').click()">📂 Upload from Device</button>
+      <input type="file" id="file-input" accept="image/*,application/pdf" style="display:none" onchange="handleFileUpload(event)"/>
+
+      <div class="tips-card">
+        <div class="tips-title">TIPS FOR BEST RESULTS</div>
+        <div class="tip"><span>›</span> Ensure good lighting on the document</div>
+        <div class="tip"><span>›</span> Keep document flat &amp; unfolded</div>
+        <div class="tip"><span>›</span> Capture the full document in frame</div>
+        <div class="tip"><span>›</span> Avoid glare on glossy surfaces</div>
+      </div>
+    </div>
+
+    <!-- PROCESSING VIEW -->
+    <div id="view-processing">
+      <img id="preview-thumb" alt="Document preview"/>
+      <div class="spinner"></div>
+      <div>
+        <div class="processing-title">Analyzing Document</div>
+        <div class="processing-sub" style="margin-top:6px;">AI is scanning for logos, text, contact<br/>info, and document type…</div>
+      </div>
+      <div class="processing-steps">
+        <div class="proc-step" style="animation-delay:0s"><div class="step-dot"></div>Detecting &amp; cropping document</div>
+        <div class="proc-step" style="animation-delay:0.3s"><div class="step-dot"></div>Classifying &amp; extracting data</div>
+        <div class="proc-step" style="animation-delay:0.5s"><div class="step-dot"></div>Reading handwriting &amp; annotations</div>
+        <div class="proc-step" style="animation-delay:0.7s"><div class="step-dot"></div>Identifying logos &amp; contacts</div>
+        <div class="proc-step" style="animation-delay:0.9s"><div class="step-dot"></div>Reconstructing document layout</div>
+      </div>
+    </div>
+
+    <!-- RESULT VIEW -->
+    <div id="view-result" class="view">
+      <div class="result-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img class="result-thumb" id="result-thumb" alt="doc"/>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+              <span class="result-cat-icon" id="res-icon">📄</span>
+              <div class="result-cat-name" id="res-cat">Document</div>
+            </div>
+            <div class="result-cat-sub">AI Classification</div>
+          </div>
+        </div>
+        <div class="confidence-badge" id="res-conf">—%</div>
+      </div>
+
+      <div class="conf-bar-label">CONFIDENCE SCORE</div>
+      <div class="conf-bar-track"><div class="conf-bar-fill" id="conf-fill" style="width:0%"></div></div>
+
+      <div class="section-label">EXTRACTED INFORMATION</div>
+      <div class="data-rows" id="data-rows"></div>
+
+      <!-- Handwriting result preview -->
+      <div id="res-hw-card" style="display:none;" class="hw-result-preview">
+        <div class="hw-label">✍️ HANDWRITING DETECTED <span class="hw-badge">NEW</span></div>
+        <div id="res-hw-content" style="color:var(--text);font-size:14px;line-height:1.6;font-family:'Georgia',serif;white-space:pre-wrap;"></div>
+      </div>
+
+      <div class="tags-row" id="tags-row"></div>
+
+      <div class="destination-box">
+        <div class="dest-icon">📂</div>
+        <div>
+          <div class="dest-label">FILING DESTINATION</div>
+          <div class="dest-path" id="dest-path">/Category/filename.jpg</div>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <button class="btn-file" id="btn-file-it" onclick="fileDocument()">File It!</button>
+        <button class="btn-retry" onclick="startScan()">Retry</button>
+      </div>
+    </div>
+
+    <!-- FOLDERS VIEW -->
+    <div id="view-folders" class="view">
+      <div class="view-title">All Folders</div>
+      <div class="view-sub" id="folders-sub">— folders · — files</div>
+      <div class="folder-grid" id="all-folder-grid"></div>
+    </div>
+
+    <!-- FOLDER DETAIL VIEW -->
+    <div id="view-folder-detail" class="view">
+      <button class="back-btn" onclick="showView('folders')">← Back</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <div style="font-size:28px;" id="detail-icon">📁</div>
+        <div>
+          <div class="view-title" style="margin-bottom:0;" id="detail-name">Folder</div>
+          <div style="color:var(--text-mid);font-size:13px;" id="detail-count">0 files</div>
+        </div>
+      </div>
+      <div class="file-list" id="file-list"></div>
+    </div>
+
+  </div><!-- end #content -->
+
+  <!-- Bottom Nav -->
+  <div id="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="showView('home')">
+      <div class="nav-icon">🏠</div>
+      <div class="nav-label">Home</div>
+    </button>
+    <button class="nav-btn-scan" onclick="startScan()">
+      <div class="nav-icon">📸</div>
+      <div class="nav-label">Scan</div>
+    </button>
+    <button class="nav-btn" id="nav-folders" onclick="showView('folders')">
+      <div class="nav-icon">🗂️</div>
+      <div class="nav-label">Files</div>
+    </button>
+  </div>
+</div>
+
+<!-- File Viewer Modal -->
+<div id="file-viewer">
+  <div id="viewer-header">
+    <button class="viewer-back" onclick="closeViewer()">← Back</button>
+    <div class="viewer-title" id="viewer-title">Document</div>
+  </div>
+  <div id="viewer-body">
+    <div class="viewer-toggle">
+      <button class="vtoggle-btn active" id="vtoggle-doc" onclick="viewerToggle('doc')">📄 Document</button>
+      <button class="vtoggle-btn" id="vtoggle-photo" onclick="viewerToggle('photo')">📸 Photo</button>
+      <button class="vtoggle-btn" id="vtoggle-notes" onclick="viewerToggle('notes')">✍️ Notes</button>
+    </div>
+    <div id="viewer-img-wrap">
+      <div id="viewer-html-doc"></div>
+      <img id="viewer-img" alt="Document" style="display:none"/>
+      <div id="viewer-no-img">
+        <div class="no-img-icon" id="viewer-no-icon">📄</div>
+        <div>No preview available</div>
+        <div style="font-size:12px;margin-top:6px;color:var(--text-dim)">Sample document from library</div>
+      </div>
+    </div>
+    <!-- Handwriting Notes Panel -->
+    <div id="viewer-notes-panel" style="display:none;padding:4px 0;">
+      <!-- AI Detected Handwriting -->
+      <div id="vw-hw-card" class="hw-card" style="display:none;">
+        <div class="hw-label">✍️ HANDWRITTEN CONTENT <span class="hw-badge">AI DETECTED</span></div>
+        <div id="vw-hw-blocks"></div>
+      </div>
+      <div id="vw-hw-none" style="display:none;" class="hw-card">
+        <div class="hw-label">✍️ HANDWRITTEN CONTENT</div>
+        <div class="hw-none">No handwriting detected on this document.</div>
+      </div>
+      <!-- User Notes -->
+      <div class="viewer-meta-card" style="margin-top:0;">
+        <div class="viewer-section-label" style="margin-bottom:10px;">📝 YOUR NOTES</div>
+        <textarea class="hw-note-edit" id="vw-user-notes" placeholder="Add your own notes about this document…"></textarea>
+        <button class="hw-save-note" onclick="saveUserNote()">Save Note</button>
+      </div>
+    </div>
+
+    <div class="viewer-meta-card">
+      <div class="viewer-section-label">FILE INFO</div>
+      <div class="viewer-data-row">
+        <span class="viewer-data-key">Category</span>
+        <span class="viewer-data-val" id="vw-category">—</span>
+      </div>
+      <div class="viewer-data-row">
+        <span class="viewer-data-key">Filed On</span>
+        <span class="viewer-data-val" id="vw-date">—</span>
+      </div>
+      <div class="viewer-data-row">
+        <span class="viewer-data-key">File Size</span>
+        <span class="viewer-data-val" id="vw-size">—</span>
+      </div>
+    </div>
+    <div class="viewer-meta-card" id="vw-extracted-card" style="display:none">
+      <div class="viewer-section-label">EXTRACTED DATA</div>
+      <div id="vw-extracted-rows"></div>
+    </div>
+    <div class="viewer-meta-card" id="vw-tags-card" style="display:none">
+      <div class="viewer-section-label">TAGS</div>
+      <div class="viewer-tags" id="vw-tags"></div>
+    </div>
+    <div class="viewer-conf" id="vw-conf" style="display:none">
+      <span class="viewer-conf-label">AI Confidence Score</span>
+      <span class="viewer-conf-val" id="vw-conf-val">—</span>
+    </div>
+    <div id="vw-device-save" style="display:none;margin-top:4px;">
+      <button onclick="saveCurrentToDevice()" style="width:100%;padding:13px;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.35);border-radius:12px;color:var(--success);font-weight:700;font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;">
+        💾 Save to Device Folder
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Install Modal -->
+<div id="install-modal">
+  <div id="install-modal-box" style="position:relative;">
+    <button class="im-close" onclick="closeInstallModal()">✕</button>
+    <div style="font-size:42px;margin-bottom:8px;">🗂️</div>
+    <div class="im-title">INSTALL FILED IT!</div>
+    <div class="im-sub">Add Filed It! to your device for the full native app experience — camera access, offline support, and home screen icon.</div>
+
+    <!-- Android / Chrome PWA install -->
+    <div id="im-pwa-section">
+      <button class="im-btn im-btn-primary" id="im-pwa-btn" onclick="triggerPWAInstall()" style="display:none;">
+        📲 Install App Now
+      </button>
+    </div>
+
+    <!-- Step-by-step instructions toggled by device -->
+    <div id="im-android-steps" class="im-steps">
+      <div class="im-option">
+        <div class="im-option-icon">🤖</div>
+        <div>
+          <div class="im-option-label">Android — Chrome</div>
+          <div class="im-option-sub">Tap the button above, or follow these steps:</div>
+        </div>
+      </div>
+      <div class="im-step"><div class="im-step-num">1</div><div class="im-step-text">Open this page in <strong>Google Chrome</strong> on your Android device</div></div>
+      <div class="im-step"><div class="im-step-num">2</div><div class="im-step-text">Tap the <strong>⋮ menu</strong> (three dots) in the top-right corner</div></div>
+      <div class="im-step"><div class="im-step-num">3</div><div class="im-step-text">Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></div></div>
+      <div class="im-step"><div class="im-step-num">4</div><div class="im-step-text">Tap <strong>Install</strong> — the Filed It! icon appears on your home screen</div></div>
+    </div>
+
+    <div id="im-ios-steps" class="im-steps">
+      <div class="im-option">
+        <div class="im-option-icon">🍎</div>
+        <div>
+          <div class="im-option-label">iPhone / iPad — Safari</div>
+          <div class="im-option-sub">iOS requires Safari for PWA installation:</div>
+        </div>
+      </div>
+      <div class="im-step"><div class="im-step-num">1</div><div class="im-step-text">Open this page in <strong>Safari</strong> (not Chrome) on your iPhone or iPad</div></div>
+      <div class="im-step"><div class="im-step-num">2</div><div class="im-step-text">Tap the <strong>Share button</strong> <span style="font-size:15px;">⬆️</span> at the bottom of the screen</div></div>
+      <div class="im-step"><div class="im-step-num">3</div><div class="im-step-text">Scroll down and tap <strong>"Add to Home Screen"</strong></div></div>
+      <div class="im-step"><div class="im-step-num">4</div><div class="im-step-text">Tap <strong>Add</strong> — Filed It! appears on your home screen like a native app</div></div>
+    </div>
+
+    <div id="im-desktop-steps" class="im-steps">
+      <div class="im-option">
+        <div class="im-option-icon">💻</div>
+        <div>
+          <div class="im-option-label">Desktop — Chrome / Edge</div>
+          <div class="im-option-sub">Install as a desktop app:</div>
+        </div>
+      </div>
+      <div class="im-step"><div class="im-step-num">1</div><div class="im-step-text">Look for the <strong>install icon ⊕</strong> in the browser address bar (right side)</div></div>
+      <div class="im-step"><div class="im-step-num">2</div><div class="im-step-text">Click it and select <strong>Install</strong></div></div>
+      <div class="im-step"><div class="im-step-num">3</div><div class="im-step-text">Or use the <strong>browser menu → "Install Filed It!"</strong></div></div>
+    </div>
+
+    <!-- Divider -->
+    <div style="display:flex;align-items:center;gap:10px;margin:14px 0;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="color:var(--text-dim);font-size:12px;">or</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <!-- Download HTML fallback -->
+    <button class="im-btn im-btn-download" onclick="downloadHTMLFile.call(this)" style="border:none;">
+      ⬇️ Download FiledIt.html to Device
+    </button>
+    <div style="color:var(--text-dim);font-size:11px;text-align:center;line-height:1.6;margin-top:4px;">
+      Save the app file directly — open it in Chrome anytime,<br/>even without an internet connection.
+    </div>
+  </div>
+</div>
+
+<canvas id="capture-canvas" style="display:none"></canvas>
+
+<script>
+// ── PWA Manifest ────────────────────────────────────────────────────────────
+// ── Service Worker (real file, not blob) ─────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => console.log('SW registered:', reg.scope))
+    .catch(err => console.warn('SW registration failed:', err));
+}
+
+// ── State ───────────────────────────────────────────────────────────────────
+const FOLDER_ICONS = {
+  'Receipts': '🧾', 'Invoices': '📄', 'Business Cards': '💼',
+  'Medical Records': '🏥', 'Legal Documents': '⚖️', 'Tax Documents': '💰',
+  'Personal IDs': '🪪', 'Contracts': '📋', 'Insurance Documents': '🛡️',
+  'Bank Statements': '🏦', 'Utility Bills': '💡', 'Photos': '🖼️',
+  'Menus': '🍽️', 'Other': '📁'
+};
+
+let state = loadState() || {
+  folders: {
+    'Receipts': [
+      { name: 'Whole Foods Receipt - Mar 12.jpg', date: 'Mar 12, 2026', size: '284 KB', icon: '🧾' },
+      { name: 'Amazon Order Receipt.pdf', date: 'Mar 28, 2026', size: '120 KB', icon: '🧾' }
+    ],
+    'Invoices': [
+      { name: 'Freelance Invoice #0047.pdf', date: 'Feb 14, 2026', size: '540 KB', icon: '📄' }
+    ],
+    'Business Cards': [
+      { name: 'Sarah Chen - TechVentures.jpg', date: 'Jan 5, 2026', size: '1.2 MB', icon: '💼' }
+    ],
+    'Tax Documents': [
+      { name: 'W-2 Form 2025.pdf', date: 'Feb 1, 2026', size: '890 KB', icon: '💰' }
+    ]
+  },
+  newFolders: [],
+  thisMonth: 3
+};
+
+let currentView = 'home';
+let mediaStream = null;
+let capturedDataUrl = null;
+let currentResult = null;
+let activeFolder = null;
+let deferredInstallPrompt = null;
+
+function saveState() {
+  try { localStorage.setItem('filedIt_state', JSON.stringify(state)); } catch(e){}
+}
+function loadState() {
+  try { const s = localStorage.getItem('filedIt_state'); return s ? JSON.parse(s) : null; } catch(e){ return null; }
+}
+
+// ── PWA Install ─────────────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show pulsing install button — Chrome on Android/desktop has a real prompt
+  const btn = document.getElementById('btn-install-header');
+  btn.classList.add('visible');
+  btn.classList.remove('hidden');
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  // App is installed — permanently hide the install button
+  const btn = document.getElementById('btn-install-header');
+  btn.classList.remove('visible');
+  btn.classList.add('hidden');
+  document.getElementById('install-banner').classList.remove('show');
+  closeInstallModal();
+  showToast('✓ Filed It! installed successfully!', 'success');
+});
+
+function installPWA() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(r => {
+      if (r.outcome === 'accepted') {
+        document.getElementById('install-banner').classList.remove('show');
+      }
+      deferredInstallPrompt = null;
+    });
+  } else {
+    showToast('Open this page in Chrome and use the browser menu → "Add to Home Screen"');
+  }
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showView(name) {
+  // Only stop camera if navigating AWAY from capture
+  if (name !== 'capture') stopCamera();
+
+  const views = ['home','capture','folders','folder-detail','result','settings'];
+  views.forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (el) { el.classList.remove('active'); }
+  });
+  document.getElementById('view-processing').classList.remove('active');
+
+  const target = document.getElementById('view-' + name);
+  if (target) target.classList.add('active');
+
+  ['home','folders'].forEach(v => {
+    const btn = document.getElementById('nav-' + v);
+    if (btn) btn.classList.toggle('active', v === name);
+  });
+
+  currentView = name;
+  document.getElementById('content').scrollTop = 0;
+
+  if (name === 'home') renderHome();
+  if (name === 'folders') renderFolders();
+  if (name === 'folder-detail' && activeFolder) renderFolderDetail(activeFolder);
+  if (name === 'settings') renderSettings();
+}
+
+function startScan() {
+  capturedDataUrl = null;
+  currentResult = null;
+
+  // Reset result button state safely
+  const fileBtn = document.getElementById('btn-file-it');
+  if (fileBtn) { fileBtn.textContent = 'File It!'; fileBtn.classList.remove('saved'); fileBtn.disabled = false; }
+
+  // Reset camera UI to fresh state before starting
+  resetCameraUI();
+
+  showView('capture');
+
+  // Small delay lets the view render before asking for camera permission
+  setTimeout(() => requestCamera(), 120);
+}
+
+// ── Camera ───────────────────────────────────────────────────────────────────
+function resetCameraUI() {
+  // Stop any existing stream first
+  stopCamera();
+  // Reset placeholder text and visibility
+  const ph = document.getElementById('camera-placeholder');
+  if (ph) {
+    ph.style.display = 'flex';
+    const txt = ph.querySelector('.ph-text');
+    if (txt) txt.textContent = 'Initializing camera…';
+  }
+  const video = document.getElementById('camera-video');
+  if (video) { video.style.display = 'none'; video.srcObject = null; }
+  const corners = document.getElementById('vf-corners');
+  if (corners) corners.style.display = 'none';
+  const sl = document.getElementById('scan-line');
+  if (sl) sl.style.display = 'none';
+  const btn = document.getElementById('btn-capture');
+  if (btn) btn.disabled = true;
+  const banner = document.getElementById('perm-banner');
+  if (banner) banner.classList.remove('show');
+}
+
+async function requestCamera() {
+  // Must be on HTTPS or localhost for camera to work
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    const ph = document.getElementById('camera-placeholder');
+    if (ph) ph.querySelector('.ph-text').textContent = 'Camera requires HTTPS. Upload an image instead.';
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const ph = document.getElementById('camera-placeholder');
+    if (ph) ph.querySelector('.ph-text').textContent = 'Camera not supported in this browser.';
+    return;
+  }
+
+  const banner = document.getElementById('perm-banner');
+  banner.classList.remove('show');
+
+  try {
+    // Try rear camera first, fall back to any camera
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      });
+    } catch(e) {
+      // Fallback: try with minimal constraints (some Android devices need this)
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    }
+
+    mediaStream = stream;
+    const video = document.getElementById('camera-video');
+    video.srcObject = stream;
+
+    // Explicitly call play() — required on many Android browsers
+    try { await video.play(); } catch(pe) { /* autoplay policy — ignore, stream will play */ }
+
+    video.style.display = 'block';
+    document.getElementById('camera-placeholder').style.display = 'none';
+    document.getElementById('vf-corners').style.display = 'block';
+    document.getElementById('scan-line').style.display = 'block';
+    document.getElementById('btn-capture').disabled = false;
+
+  } catch(err) {
+    console.error('Camera error:', err.name, err.message);
+    const ph = document.getElementById('camera-placeholder');
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      banner.classList.add('show');
+      if (ph) ph.querySelector('.ph-text').textContent = 'Camera permission denied';
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      if (ph) ph.querySelector('.ph-text').textContent = 'No camera found — upload a file instead';
+    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      if (ph) ph.querySelector('.ph-text').textContent = 'Camera in use by another app — close it and retry';
+    } else if (err.name === 'OverconstrainedError') {
+      // Retry with no constraints at all
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        mediaStream = stream;
+        const video = document.getElementById('camera-video');
+        video.srcObject = stream;
+        try { await video.play(); } catch(pe) {}
+        video.style.display = 'block';
+        if (ph) ph.style.display = 'none';
+        document.getElementById('vf-corners').style.display = 'block';
+        document.getElementById('scan-line').style.display = 'block';
+        document.getElementById('btn-capture').disabled = false;
+        return;
+      } catch(e2) {
+        if (ph) ph.querySelector('.ph-text').textContent = 'Camera unavailable — upload a file instead';
+      }
+    } else {
+      if (ph) ph.querySelector('.ph-text').textContent = `Camera error: ${err.message || err.name} — upload a file instead`;
+    }
+  }
+}
+
+function stopCamera() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  const video = document.getElementById('camera-video');
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.style.display = 'none';
+  }
+  const corners = document.getElementById('vf-corners');
+  if (corners) corners.style.display = 'none';
+  const sl = document.getElementById('scan-line');
+  if (sl) sl.style.display = 'none';
+  const btn = document.getElementById('btn-capture');
+  if (btn) btn.disabled = true;
+}
+
+function capturePhoto() {
+  const video = document.getElementById('camera-video');
+  if (!video || !mediaStream) return;
+  const canvas = document.getElementById('capture-canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  capturedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+  stopCamera();
+  processImage();
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    capturedDataUrl = ev.target.result;
+    stopCamera();
+    processImage();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+// ── AI Analysis ──────────────────────────────────────────────────────────────
+function processImage() {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-processing').classList.add('active');
+  currentView = 'processing';
+  setProcessingStep(0);
+
+  const thumb = document.getElementById('preview-thumb');
+  if (capturedDataUrl && capturedDataUrl.startsWith('data:image')) {
+    thumb.src = capturedDataUrl;
+    thumb.style.display = 'block';
+  }
+
+  runPipeline(capturedDataUrl);
+}
+
+function setProcessingStep(step) {
+  const steps = document.querySelectorAll('.proc-step');
+  steps.forEach((el, i) => {
+    el.style.opacity = i <= step ? '1' : '0.4';
+    el.querySelector('.step-dot').style.background = i <= step ? 'var(--accent)' : 'var(--border)';
+    el.querySelector('.step-dot').style.boxShadow = i <= step ? '0 0 8px var(--accent)' : 'none';
+  });
+}
+
+async function callAI(messages, maxTokens) {
+  const apiKey = localStorage.getItem('filedIt_apiKey');
+  if (!apiKey) { showApiKeyScreen(); throw new Error('No API key'); }
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, messages })
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    if (res.status === 401) { localStorage.removeItem('filedIt_apiKey'); showApiKeyScreen(true); throw new Error('Invalid key'); }
+    throw new Error(errData.error?.message || 'API error ' + res.status);
+  }
+  return res.json();
+}
+
+function parseJSON(text) {
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+async function runPipeline(dataUrl) {
+  try {
+    const isPDF = dataUrl && dataUrl.startsWith('data:application/pdf');
+    const base64 = dataUrl.split(',')[1];
+    const mt = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+
+    // ── PASS 1: Detect & crop document ──────────────────────────────────────
+    setProcessingStep(0);
+    let croppedDataUrl = dataUrl;
+
+    if (!isPDF) {
+      const cropData = await callAI([{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mt, data: base64 } },
+          { type: 'text', text: `You are a document edge-detection AI. Examine this image and find the bounding box of the document/item only — exclude any background, table surface, hands, fingers, shadows, and surroundings.
+
+Respond ONLY with a JSON object, no markdown:
+{
+  "found": true,
+  "x": <left edge as 0.0–1.0 fraction of image width>,
+  "y": <top edge as 0.0–1.0 fraction of image height>,
+  "w": <width as 0.0–1.0 fraction of image width>,
+  "h": <height as 0.0–1.0 fraction of image height>,
+  "angle": <clockwise rotation degrees to straighten document, 0 if already straight, range -15 to 15>
+}
+
+If no clear document is found, return: {"found": false}
+Be precise — crop tightly to the document edges only.` }
+        ]
+      }], 300);
+
+      const cropText = (cropData.content || []).map(b => b.text || '').join('');
+      const crop = parseJSON(cropText);
+
+      if (crop.found) {
+        croppedDataUrl = await cropAndDeskewImage(dataUrl, crop);
+        capturedDataUrl = croppedDataUrl; // update stored image to cropped version
+      }
+    }
+
+    // ── PASS 2: Classify + extract all data ─────────────────────────────────
+    setProcessingStep(1);
+    const croppedBase64 = croppedDataUrl.split(',')[1];
+    const croppedMt = croppedDataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+
+    const classifyContent = isPDF
+      ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }]
+      : [{ type: 'image', source: { type: 'base64', media_type: croppedMt, data: croppedBase64 } }];
+
+    classifyContent.push({ type: 'text', text: `You are a document classification and data extraction AI for the "Filed It!" app.
+Analyze this document image carefully and respond ONLY with a valid JSON object — no markdown, no preamble.
+
+{
+  "category": "<Receipts|Invoices|Business Cards|Medical Records|Legal Documents|Tax Documents|Personal IDs|Contracts|Insurance Documents|Bank Statements|Utility Bills|Photos|Menus|Other>",
+  "confidence": <integer 65-98>,
+  "suggestedFileName": "<descriptive-filename-no-spaces.jpg>",
+  "tags": ["<tag1>","<tag2>","<tag3>"],
+  "extractedData": { "<key>": "<value>" },
+  "documentTitle": "<main title or name on document>",
+  "documentDate": "<date if visible, else empty string>"
+}
+
+Extract up to 8 key fields in extractedData (vendor, total, address, phone, email, document number, due date, patient, account number, policy number, etc.). Only include clearly visible data.` });
+
+    const classifyData = await callAI([{ role: 'user', content: classifyContent }], 1000);
+    const classifyText = (classifyData.content || []).map(b => b.text || '').join('');
+    const classified = parseJSON(classifyText);
+
+    // ── PASS 2.5: Handwriting detection ─────────────────────────────────────
+    setProcessingStep(2);
+    const hwContent = isPDF
+      ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }]
+      : [{ type: 'image', source: { type: 'base64', media_type: croppedMt, data: croppedBase64 } }];
+
+    hwContent.push({ type: 'text', text: `You are a handwriting recognition AI. Carefully examine this document image and identify ALL handwritten content — this includes handwritten annotations, signatures, initials, marginalia, sticky notes, filled-in form fields, corrections, circled text, underlines with notes, and any cursive or printed handwriting by a human.
+
+Distinguish handwriting from printed/typed text carefully.
+
+Respond ONLY with a valid JSON object — no markdown, no explanation:
+{
+  "hasHandwriting": <true|false>,
+  "items": [
+    {
+      "location": "<where on the document: e.g. 'top-right corner', 'margin left', 'below signature line', 'sticky note', 'form field - Name', 'bottom margin'>",
+      "text": "<exact transcription of the handwritten content, preserve line breaks with \\n>",
+      "type": "<annotation|signature|initials|form-fill|correction|sticky-note|margin-note|date|other>",
+      "readConfidence": "<high|medium|low>",
+      "notes": "<optional: any context about this handwriting, e.g. 'appears to be a correction to printed text', 'signature only - no readable text'>"
+    }
+  ]
+}
+
+If no handwriting is present, return: {"hasHandwriting": false, "items": []}
+Transcribe ALL readable handwriting as accurately as possible, even if partially legible.` });
+
+    const hwData = await callAI([{ role: 'user', content: hwContent }], 1500);
+    const hwText = (hwData.content || []).map(b => b.text || '').join('');
+    let handwriting = { hasHandwriting: false, items: [] };
+    try { handwriting = parseJSON(hwText); } catch(e) {}
+    classified.handwriting = handwriting;
+
+    // ── PASS 3: Classify step 3 indicator ──────────────────────────────────
+    setProcessingStep(3);
+
+    // ── PASS 4: Generate faithful HTML reconstruction ─────────────────────────
+    setProcessingStep(4);
+    const reconstructContent = isPDF
+      ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }]
+      : [{ type: 'image', source: { type: 'base64', media_type: croppedMt, data: croppedBase64 } }];
+
+    reconstructContent.push({ type: 'text', text: `You are a document reconstruction AI. Your job is to produce a pixel-faithful HTML+CSS reproduction of this document that exactly matches the visual layout, typography hierarchy, spacing, and structure of the original.
+
+Rules:
+- Reproduce ALL visible text in the EXACT positions and sizes relative to each other
+- Match the font weight hierarchy (bold headers, normal body, small footers)
+- Match alignment (left, center, right) for each element
+- Preserve table structures (line items, quantities, prices, totals)
+- Include logos/brand names as styled text if present
+- Use a white background (#ffffff) with black/dark text — clean document style
+- Output a SINGLE self-contained HTML snippet (no <html>/<head>/<body> tags) that fits inside a div
+- Use only inline styles — no external resources
+- Max width should be 100% — make it responsive
+- Do NOT include the actual scanned image — reconstruct it purely from text and CSS
+
+Respond with ONLY the raw HTML snippet, no markdown fences, no explanation.` });
+
+    const reconstructData = await callAI([{ role: 'user', content: reconstructContent }], 4000);
+    const htmlSnippet = (reconstructData.content || []).map(b => b.text || '').join('').trim();
+
+    classified.documentHTML = htmlSnippet;
+    currentResult = classified;
+    showResult(classified);
+
+  } catch(err) {
+    console.error('Pipeline error:', err);
+    if (err.message !== 'No API key' && err.message !== 'Invalid key') {
+      showToast('Analysis failed: ' + (err.message || 'Please try again.'));
+      showView('capture');
+    }
+  }
+}
+
+// Crop and optionally deskew the image using canvas
+async function cropAndDeskewImage(dataUrl, crop) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const sw = img.naturalWidth;
+      const sh = img.naturalHeight;
+
+      // Clamp crop values
+      const x = Math.max(0, Math.min(1, crop.x || 0));
+      const y = Math.max(0, Math.min(1, crop.y || 0));
+      const w = Math.max(0.1, Math.min(1 - x, crop.w || 1));
+      const h = Math.max(0.1, Math.min(1 - y, crop.h || 1));
+      const angle = crop.angle || 0;
+
+      const cx = x * sw, cy = y * sh, cw = w * sw, ch = h * sh;
+
+      const canvas = document.getElementById('capture-canvas');
+      canvas.width = Math.round(cw);
+      canvas.height = Math.round(ch);
+      const ctx = canvas.getContext('2d');
+
+      if (Math.abs(angle) > 0.5) {
+        // Deskew: rotate around crop center
+        const rad = (-angle * Math.PI) / 180;
+        ctx.save();
+        ctx.translate(cw / 2, ch / 2);
+        ctx.rotate(rad);
+        ctx.drawImage(img, cx, cy, cw, ch, -cw / 2, -ch / 2, cw, ch);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
+      }
+
+      resolve(canvas.toDataURL('image/jpeg', 0.94));
+    };
+    img.onerror = () => resolve(dataUrl); // fallback to original
+    img.src = dataUrl;
+  });
+}
+
+// ── Result ───────────────────────────────────────────────────────────────────
+function showResult(r) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-processing').classList.remove('active');
+  document.getElementById('view-result').classList.add('active');
+  currentView = 'result';
+
+  const icon = FOLDER_ICONS[r.category] || '📁';
+  document.getElementById('res-icon').textContent = icon;
+  document.getElementById('res-cat').textContent = r.category;
+  document.getElementById('res-conf').textContent = r.confidence + '% match';
+  setTimeout(() => {
+    document.getElementById('conf-fill').style.width = r.confidence + '%';
+  }, 100);
+
+  const thumb = document.getElementById('result-thumb');
+  if (capturedDataUrl && capturedDataUrl.startsWith('data:image')) {
+    thumb.src = capturedDataUrl; thumb.style.display = 'block';
+  }
+
+  document.getElementById('dest-path').textContent = `/${r.category}/${r.suggestedFileName}`;
+
+  const rows = document.getElementById('data-rows');
+  rows.innerHTML = '';
+  Object.entries(r.extractedData || {}).forEach(([k, v]) => {
+    rows.innerHTML += `<div class="data-row"><span class="data-key">${k}</span><span class="data-val">${v}</span></div>`;
+  });
+
+  const tags = document.getElementById('tags-row');
+  tags.innerHTML = '';
+  (r.tags || []).forEach(t => {
+    tags.innerHTML += `<span class="tag">${t}</span>`;
+  });
+
+  // Handwriting preview in result
+  const hwCard = document.getElementById('res-hw-card');
+  const hwContent = document.getElementById('res-hw-content');
+  const hw = r.handwriting;
+  if (hw && hw.hasHandwriting && hw.items && hw.items.length > 0) {
+    const preview = hw.items.slice(0, 2).map(item =>
+      `[${item.location}]\n${item.text}`
+    ).join('\n\n');
+    hwContent.textContent = preview + (hw.items.length > 2 ? `\n\n+ ${hw.items.length - 2} more…` : '');
+    hwCard.style.display = 'block';
+  } else {
+    hwCard.style.display = 'none';
+  }
+
+  document.getElementById('btn-file-it').textContent = 'File It!';
+  document.getElementById('btn-file-it').classList.remove('saved');
+}
+
+function fileDocument() {
+  if (!currentResult) return;
+  const btn = document.getElementById('btn-file-it');
+  btn.textContent = 'Filing…'; btn.disabled = true;
+
+  setTimeout(async () => {
+    const cat = currentResult.category;
+    const sizeKB = capturedDataUrl ? Math.round((capturedDataUrl.length * 0.75) / 1024) : 0;
+    const sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(1) + ' MB' : sizeKB + ' KB';
+    const newFile = {
+      name: currentResult.suggestedFileName,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      size: sizeStr,
+      icon: FOLDER_ICONS[cat] || '📁',
+      imageData: capturedDataUrl || null,
+      extractedData: currentResult.extractedData || {},
+      tags: currentResult.tags || [],
+      confidence: currentResult.confidence || 0,
+      category: cat,
+      documentHTML: currentResult.documentHTML || null,
+      handwriting: currentResult.handwriting || { hasHandwriting: false, items: [] },
+      userNotes: '',
+      savedToDevice: false
+    };
+
+    // Save to device folder if connected
+    if (deviceFolderHandle) {
+      const ok = await saveFileToDevice(newFile);
+      newFile.savedToDevice = ok;
+    }
+
+    if (!state.folders[cat]) {
+      state.folders[cat] = [];
+      state.newFolders = state.newFolders || [];
+      if (!state.newFolders.includes(cat)) state.newFolders.push(cat);
+    }
+    state.folders[cat].unshift(newFile);
+    state.thisMonth = (state.thisMonth || 0) + 1;
+    saveState();
+
+    btn.textContent = '✓ Filed!';
+    btn.classList.add('saved');
+    btn.disabled = false;
+
+    const deviceMsg = newFile.savedToDevice ? ' & saved to device' : '';
+    showToast('✓ Filed in ' + cat + deviceMsg, 'success');
+
+    setTimeout(() => showView('folders'), 1400);
+  }, 400);
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderHome() {
+  const totalFiles = Object.values(state.folders).reduce((a, b) => a + b.length, 0);
+  document.getElementById('stat-files').textContent = totalFiles;
+  document.getElementById('stat-folders').textContent = Object.keys(state.folders).length;
+  document.getElementById('stat-month').textContent = state.thisMonth || 0;
+
+  const grid = document.getElementById('home-folder-grid');
+  grid.innerHTML = '';
+  Object.entries(state.folders).slice(0, 4).forEach(([name, files]) => {
+    grid.innerHTML += folderCardHTML(name, files.length);
+  });
+
+  const fl = document.getElementById('feature-list');
+  fl.innerHTML = '';
+  Object.entries(FOLDER_ICONS).forEach(([name, icon]) => {
+    fl.innerHTML += `<div class="feature-item"><span class="feature-icon">${icon}</span><span class="feature-name">${name}</span></div>`;
+  });
+}
+
+function renderFolders() {
+  const totalFiles = Object.values(state.folders).reduce((a, b) => a + b.length, 0);
+  document.getElementById('folders-sub').textContent =
+    `${Object.keys(state.folders).length} folders · ${totalFiles} files`;
+
+  const grid = document.getElementById('all-folder-grid');
+  grid.innerHTML = '';
+  Object.entries(state.folders).forEach(([name, files]) => {
+    grid.innerHTML += folderCardHTML(name, files.length);
+  });
+}
+
+function folderCardHTML(name, count) {
+  const icon = FOLDER_ICONS[name] || '📁';
+  const isNew = (state.newFolders || []).includes(name);
+  return `<div class="folder-card" onclick="openFolder('${name.replace(/'/g,"\\'")}')">
+    ${isNew ? '<div class="new-badge">NEW</div>' : ''}
+    <div class="folder-icon">${icon}</div>
+    <div class="folder-name">${name}</div>
+    <div class="folder-count">${count} file${count !== 1 ? 's' : ''}</div>
+  </div>`;
+}
+
+function openFolder(name) {
+  activeFolder = name;
+  renderFolderDetail(name);
+  showView('folder-detail');
+}
+
+function renderFolderDetail(name) {
+  const files = state.folders[name] || [];
+  const icon = FOLDER_ICONS[name] || '📁';
+  document.getElementById('detail-icon').textContent = icon;
+  document.getElementById('detail-name').textContent = name;
+  document.getElementById('detail-count').textContent = files.length + ' file' + (files.length !== 1 ? 's' : '');
+
+  const list = document.getElementById('file-list');
+  if (files.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>No files yet</div></div>';
+    return;
+  }
+  list.innerHTML = files.map((f, i) => {
+    const thumbHTML = f.imageData
+      ? `<img class="file-img-thumb" src="${f.imageData}" alt="doc"/>`
+      : `<div class="file-thumb-icon">${f.icon}</div>`;
+    return `<div class="file-item" onclick="openFile('${name.replace(/'/g,"\\'")}', ${i})" style="cursor:pointer;">
+      ${thumbHTML}
+      <div style="flex:1;min-width:0;">
+        <div class="file-name">${f.name}</div>
+        <div class="file-meta">${f.date} · ${f.size}</div>
+        ${f.savedToDevice ? '<div class="saved-to-device">💾 Saved to device</div>' : ''}
+        ${f.handwriting && f.handwriting.hasHandwriting ? '<span class="hw-indicator">✍️ Handwriting</span>' : ''}
+      </div>
+      <div style="color:var(--accent);font-size:18px;flex-shrink:0;">›</div>
+    </div>`;
+  }).join('');
+}
+
+let currentViewedFile = null;
+let currentViewedFolder = null;
+let currentViewedIndex = null;
+
+function openFile(folderName, index) {
+  const file = (state.folders[folderName] || [])[index];
+  if (!file) return;
+  currentViewedFile = file;
+  currentViewedFolder = folderName;
+  currentViewedIndex = index;
+
+  document.getElementById('viewer-title').textContent = file.name;
+  document.getElementById('vw-category').textContent = file.category || folderName;
+  document.getElementById('vw-date').textContent = file.date || '—';
+  document.getElementById('vw-size').textContent = file.size || '—';
+
+  // ── Document HTML reconstruction (primary view) ──
+  const htmlDoc = document.getElementById('viewer-html-doc');
+  const img = document.getElementById('viewer-img');
+  const noImg = document.getElementById('viewer-no-img');
+
+  htmlDoc.style.display = 'none';
+  img.style.display = 'none';
+  noImg.style.display = 'none';
+
+  if (file.documentHTML) {
+    htmlDoc.innerHTML = file.documentHTML;
+    htmlDoc.style.display = 'block';
+    // Default to document view
+    viewerToggle('doc');
+    document.getElementById('vtoggle-photo').style.display = file.imageData ? '' : 'none';
+  } else if (file.imageData) {
+    img.src = file.imageData;
+    img.style.display = 'block';
+    viewerToggle('photo');
+  } else {
+    document.getElementById('viewer-no-icon').textContent = file.icon || '📄';
+    noImg.style.display = 'block';
+  }
+
+  // Store for toggle
+  document.getElementById('viewer-img').src = file.imageData || '';
+  document.getElementById('viewer-img').dataset.hasImage = file.imageData ? 'true' : 'false';
+  document.getElementById('viewer-html-doc').dataset.hasHtml = file.documentHTML ? 'true' : 'false';
+
+  // Extracted data
+  const extractedCard = document.getElementById('vw-extracted-card');
+  const extractedRows = document.getElementById('vw-extracted-rows');
+  if (file.extractedData && Object.keys(file.extractedData).length > 0) {
+    extractedRows.innerHTML = Object.entries(file.extractedData).map(([k, v]) =>
+      `<div class="viewer-data-row"><span class="viewer-data-key">${k}</span><span class="viewer-data-val">${v}</span></div>`
+    ).join('');
+    extractedCard.style.display = 'block';
+  } else {
+    extractedCard.style.display = 'none';
+  }
+
+  // Tags
+  const tagsCard = document.getElementById('vw-tags-card');
+  const tagsWrap = document.getElementById('vw-tags');
+  if (file.tags && file.tags.length > 0) {
+    tagsWrap.innerHTML = file.tags.map(t => `<span class="tag">${t}</span>`).join('');
+    tagsCard.style.display = 'block';
+  } else {
+    tagsCard.style.display = 'none';
+  }
+
+  // Confidence
+  const confEl = document.getElementById('vw-conf');
+  if (file.confidence) {
+    document.getElementById('vw-conf-val').textContent = file.confidence + '%';
+    confEl.style.display = 'flex';
+  } else {
+    confEl.style.display = 'none';
+  }
+
+  // ── Handwriting Notes panel ──
+  const hw = file.handwriting;
+  const hwCard = document.getElementById('vw-hw-card');
+  const hwNone = document.getElementById('vw-hw-none');
+  const hwBlocks = document.getElementById('vw-hw-blocks');
+
+  if (hw && hw.hasHandwriting && hw.items && hw.items.length > 0) {
+    hwBlocks.innerHTML = hw.items.map(item => {
+      const confColor = item.readConfidence === 'high' ? '#00e676'
+        : item.readConfidence === 'medium' ? '#ffd447' : '#ff4569';
+      return `<div class="hw-block">
+        <div class="hw-location">📍 ${item.location} — <span style="text-transform:capitalize;">${item.type || 'annotation'}</span></div>
+        <div class="hw-text">${escapeHtml(item.text)}</div>
+        ${item.notes ? `<div style="color:var(--text-dim);font-size:12px;margin-top:5px;font-style:italic;">${escapeHtml(item.notes)}</div>` : ''}
+        <div class="hw-confidence">
+          <div class="hw-conf-dot" style="background:${confColor};"></div>
+          ${item.readConfidence || 'medium'} confidence
+        </div>
+      </div>`;
+    }).join('');
+    hwCard.style.display = 'block';
+    hwNone.style.display = 'none';
+  } else {
+    hwCard.style.display = 'none';
+    hwNone.style.display = 'block';
+  }
+
+  // User notes
+  document.getElementById('vw-user-notes').value = file.userNotes || '';
+
+  // Device save button
+  const deviceSaveBtn = document.getElementById('vw-device-save');
+  if (deviceFolderHandle && !file.savedToDevice) {
+    deviceSaveBtn.style.display = 'block';
+  } else {
+    deviceSaveBtn.style.display = 'none';
+  }
+
+  document.getElementById('file-viewer').classList.add('open');
+  document.getElementById('viewer-body').scrollTop = 0;
+}
+
+async function saveCurrentToDevice() {
+  if (!currentViewedFile || !deviceFolderHandle) return;
+  const ok = await saveFileToDevice(currentViewedFile);
+  if (ok) {
+    currentViewedFile.savedToDevice = true;
+    // Update in state
+    if (currentViewedFolder && currentViewedIndex !== null) {
+      if (state.folders[currentViewedFolder] && state.folders[currentViewedFolder][currentViewedIndex]) {
+        state.folders[currentViewedFolder][currentViewedIndex].savedToDevice = true;
+        saveState();
+      }
+    }
+    document.getElementById('vw-device-save').style.display = 'none';
+    showToast('✓ Saved to device folder!', 'success');
+  }
+}
+
+function viewerToggle(mode) {
+  const htmlDoc = document.getElementById('viewer-html-doc');
+  const img = document.getElementById('viewer-img');
+  const noImg = document.getElementById('viewer-no-img');
+  const notesPanel = document.getElementById('viewer-notes-panel');
+  const btnDoc = document.getElementById('vtoggle-doc');
+  const btnPhoto = document.getElementById('vtoggle-photo');
+  const btnNotes = document.getElementById('vtoggle-notes');
+
+  btnDoc.classList.toggle('active', mode === 'doc');
+  btnPhoto.classList.toggle('active', mode === 'photo');
+  btnNotes.classList.toggle('active', mode === 'notes');
+
+  htmlDoc.style.display = 'none';
+  img.style.display = 'none';
+  noImg.style.display = 'none';
+  notesPanel.style.display = 'none';
+  document.getElementById('viewer-img-wrap').style.display = 'flex';
+
+  if (mode === 'notes') {
+    document.getElementById('viewer-img-wrap').style.display = 'none';
+    notesPanel.style.display = 'block';
+  } else if (mode === 'doc') {
+    const hasHtml = htmlDoc.dataset.hasHtml === 'true';
+    htmlDoc.style.display = hasHtml ? 'block' : 'none';
+    if (!hasHtml) noImg.style.display = 'block';
+  } else {
+    const hasImage = img.dataset.hasImage === 'true';
+    img.style.display = hasImage ? 'block' : 'none';
+    if (!hasImage) noImg.style.display = 'block';
+  }
+}
+
+function saveUserNote() {
+  if (!currentViewedFile || currentViewedFolder === null || currentViewedIndex === null) return;
+  const note = document.getElementById('vw-user-notes').value;
+  currentViewedFile.userNotes = note;
+  if (state.folders[currentViewedFolder] && state.folders[currentViewedFolder][currentViewedIndex]) {
+    state.folders[currentViewedFolder][currentViewedIndex].userNotes = note;
+    saveState();
+  }
+  showToast('✓ Note saved', 'success');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function closeViewer() {
+  document.getElementById('file-viewer').classList.remove('open');
+}
+
+// ── Install Modal ─────────────────────────────────────────────────────────────
+function openInstallModal() {
+  const modal = document.getElementById('install-modal');
+  modal.classList.add('open');
+
+  // Detect device/browser and show appropriate steps
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isAndroid = /Android/.test(ua);
+  const isDesktop = !isIOS && !isAndroid;
+
+  document.getElementById('im-ios-steps').style.display = isIOS ? 'block' : 'none';
+  document.getElementById('im-android-steps').style.display = isAndroid ? 'block' : 'none';
+  document.getElementById('im-desktop-steps').style.display = isDesktop ? 'block' : 'none';
+
+  // Show native install button if prompt is available (Android Chrome)
+  const pwaBtn = document.getElementById('im-pwa-btn');
+  if (deferredInstallPrompt) {
+    pwaBtn.style.display = 'block';
+  } else {
+    pwaBtn.style.display = 'none';
+  }
+}
+
+function closeInstallModal() {
+  document.getElementById('install-modal').classList.remove('open');
+}
+
+// Close modal on backdrop click
+document.getElementById('install-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeInstallModal();
+});
+
+async function triggerPWAInstall() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  if (outcome === 'accepted') {
+    const btn = document.getElementById('btn-install-header');
+    btn.classList.remove('visible');
+    btn.classList.add('hidden');
+    document.getElementById('im-pwa-btn').style.display = 'none';
+    closeInstallModal();
+    showToast('✓ Filed It! installed!', 'success');
+  }
+}
+
+async function downloadHTMLFile() {
+  const btn = this instanceof HTMLElement ? this : document.querySelector('.im-btn-download');
+  const origText = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = '⏳ Preparing…'; btn.disabled = true; }
+
+  try {
+    // Fetch the original source HTML file (not the live DOM)
+    const response = await fetch(location.href);
+    if (!response.ok) throw new Error('Could not fetch source');
+    const sourceHTML = await response.text();
+
+    const blob = new Blob([sourceHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'FiledIt.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showToast('✓ FiledIt.html downloaded!', 'success');
+  } catch(e) {
+    // Fallback: if fetch fails (e.g. opened as local file://), export current state
+    const sourceHTML = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+    const blob = new Blob([sourceHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'FiledIt.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showToast('✓ FiledIt.html downloaded!', 'success');
+  } finally {
+    if (btn) { btn.innerHTML = origText; btn.disabled = false; }
+  }
+}
+
+// ── Device Folder (File System Access API) ───────────────────────────────────
+let deviceFolderHandle = null; // root "Filed It!" directory handle
+
+async function connectDeviceFolder() {
+  if (!('showDirectoryPicker' in window)) {
+    showToast('Your browser does not support folder access. Use Chrome on Android or desktop.');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
+    // Create or open the "Filed It!" subfolder
+    deviceFolderHandle = await handle.getDirectoryHandle('Filed It!', { create: true });
+    // Create an index file so the folder is recognizable
+    await writeTextFile(deviceFolderHandle, 'README.txt',
+      'Filed It! - AI Document Filing App\nThis folder contains all your scanned and filed documents.\nOrganized by category subfolder.\n');
+    persistFolderName(handle.name + '/Filed It!');
+    updateDeviceFolderUI(true, handle.name + '/Filed It!');
+    showToast('✓ Device folder connected!', 'success');
+  } catch(e) {
+    if (e.name !== 'AbortError') showToast('Could not connect folder: ' + e.message);
+  }
+}
+
+function persistFolderName(name) {
+  try { localStorage.setItem('filedIt_deviceFolder', name); } catch(e) {}
+}
+
+function disconnectFolder() {
+  deviceFolderHandle = null;
+  try { localStorage.removeItem('filedIt_deviceFolder'); } catch(e) {}
+  updateDeviceFolderUI(false, '');
+  showToast('Device folder disconnected.');
+}
+
+function updateDeviceFolderUI(connected, path) {
+  const banner = document.getElementById('device-folder-banner');
+  const noFolder = document.getElementById('settings-no-folder');
+  const hasFolder = document.getElementById('settings-has-folder');
+  const pathEl = document.getElementById('settings-folder-path');
+  const bannerPath = document.getElementById('dfb-path-text');
+
+  if (connected) {
+    banner.classList.add('show');
+    bannerPath.textContent = path || 'Filed It! folder active';
+    noFolder.style.display = 'none';
+    hasFolder.style.display = 'block';
+    if (pathEl) pathEl.textContent = path || '—';
+  } else {
+    banner.classList.remove('show');
+    noFolder.style.display = 'block';
+    hasFolder.style.display = 'none';
+  }
+}
+
+async function writeTextFile(dirHandle, filename, content) {
+  const fh = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fh.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+async function writeBinaryFile(dirHandle, filename, dataUrl) {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  const fh = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fh.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+async function saveFileToDevice(fileObj) {
+  if (!deviceFolderHandle) return;
+  try {
+    // Get or create category subfolder
+    const catFolder = await deviceFolderHandle.getDirectoryHandle(fileObj.category, { create: true });
+    const baseName = fileObj.name.replace(/\.[^.]+$/, ''); // strip extension
+
+    const saveImg  = document.getElementById('pref-save-image')?.checked !== false;
+    const saveHtml = document.getElementById('pref-save-html')?.checked !== false;
+    const saveJson = document.getElementById('pref-save-json')?.checked !== false;
+
+    // 1. Save cropped image
+    if (saveImg && fileObj.imageData) {
+      const ext = fileObj.imageData.startsWith('data:image/png') ? 'png' : 'jpg';
+      await writeBinaryFile(catFolder, baseName + '.' + ext, fileObj.imageData);
+    }
+
+    // 2. Save HTML reconstruction
+    if (saveHtml && fileObj.documentHTML) {
+      const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${fileObj.name}</title>
+<style>
+  body { margin: 0; padding: 20px; background: #fff; font-family: Arial, sans-serif; }
+  .filed-it-header {
+    background: #0a0a0f; color: #00e5ff; padding: 10px 16px;
+    font-family: sans-serif; font-size: 12px; margin: -20px -20px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+</style>
+</head>
+<body>
+<div class="filed-it-header">
+  <span>🗂️ Filed It! &nbsp;·&nbsp; ${fileObj.category}</span>
+  <span>${fileObj.date}</span>
+</div>
+${fileObj.documentHTML}
+</body>
+</html>`;
+      await writeTextFile(catFolder, baseName + '.html', fullHtml);
+    }
+
+    // 3. Save metadata JSON
+    if (saveJson) {
+      const meta = {
+        name: fileObj.name,
+        category: fileObj.category,
+        date: fileObj.date,
+        size: fileObj.size,
+        confidence: fileObj.confidence,
+        tags: fileObj.tags,
+        extractedData: fileObj.extractedData,
+        handwriting: fileObj.handwriting || { hasHandwriting: false, items: [] },
+        userNotes: fileObj.userNotes || '',
+        filedAt: new Date().toISOString()
+      };
+      await writeTextFile(catFolder, baseName + '.json', JSON.stringify(meta, null, 2));
+    }
+
+    return true;
+  } catch(e) {
+    console.error('Device save error:', e);
+    showToast('Saved in app, but device save failed: ' + e.message);
+    return false;
+  }
+}
+
+function clearAppData() {
+  if (!confirm('Clear all app data? This removes files from the app only — your device folder is untouched.')) return;
+  state = { folders: {}, newFolders: [], thisMonth: 0 };
+  saveState();
+  renderHome();
+  showView('home');
+  showToast('App data cleared.');
+}
+
+function renderSettings() {
+  const key = localStorage.getItem('filedIt_apiKey');
+  const keyStatus = document.getElementById('settings-key-status');
+  if (keyStatus) keyStatus.textContent = key ? '✓ Key saved (sk-ant-....' + key.slice(-4) + ')' : 'Not configured';
+
+  const savedPath = localStorage.getItem('filedIt_deviceFolder');
+  if (savedPath && !deviceFolderHandle) {
+    // Handle was lost (page refresh) — show reconnect prompt
+    updateDeviceFolderUI(true, savedPath + ' (tap to reconnect)');
+    document.getElementById('settings-has-folder').style.display = 'block';
+    document.getElementById('settings-no-folder').style.display = 'none';
+    document.getElementById('settings-folder-path').textContent = savedPath + ' — tap Change to reconnect';
+  } else if (deviceFolderHandle) {
+    const path = localStorage.getItem('filedIt_deviceFolder') || 'Filed It!';
+    updateDeviceFolderUI(true, path);
+  } else {
+    updateDeviceFolderUI(false, '');
+  }
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'success' ? 'var(--success)' : 'var(--error)';
+  t.style.color = type === 'success' ? '#000' : '#fff';
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3000);
+}
+
+// ── API Key Management ────────────────────────────────────────────────────────
+function saveApiKey() {
+  const val = document.getElementById('ak-input').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('ak-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('ak-error').style.display = 'none';
+  localStorage.setItem('filedIt_apiKey', val);
+  document.getElementById('apikey-screen').classList.add('hidden');
+}
+
+function showApiKeyScreen(showError) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-processing').classList.remove('active');
+  document.getElementById('view-home').classList.add('active');
+  const screen = document.getElementById('apikey-screen');
+  screen.classList.remove('hidden');
+  if (showError) {
+    document.getElementById('ak-error').textContent = 'Invalid or expired API key. Please enter a new one.';
+    document.getElementById('ak-error').style.display = 'block';
+  }
+  document.getElementById('ak-input').value = '';
+}
+
+// Allow Enter key on API key input
+document.getElementById('ak-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveApiKey();
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+if (localStorage.getItem('filedIt_apiKey')) {
+  document.getElementById('apikey-screen').classList.add('hidden');
+}
+
+// Restore device folder banner if previously connected
+const savedDevicePath = localStorage.getItem('filedIt_deviceFolder');
+if (savedDevicePath) {
+  updateDeviceFolderUI(true, savedDevicePath);
+}
+
+// Show install button on iOS (beforeinstallprompt never fires there)
+// Hide it if already running as installed PWA (standalone mode)
+const isRunningInstalled = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+if (isRunningInstalled) {
+  // Already installed — keep button hidden
+  document.getElementById('btn-install-header').classList.add('hidden');
+} else if (isIOS) {
+  // iOS: show install button since beforeinstallprompt never fires
+  document.getElementById('btn-install-header').classList.add('visible');
+}
+// Android/desktop: button stays hidden until beforeinstallprompt fires
+
+renderHome();
+</script>
+</body>
+</html>
